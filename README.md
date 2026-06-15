@@ -1,0 +1,3 @@
+﻿# SpotGo Backend
+
+Initializing project...
