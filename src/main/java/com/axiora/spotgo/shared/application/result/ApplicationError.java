@@ -38,4 +38,10 @@ public record ApplicationError(
                 "Unexpected error in %s".formatted(context),
                 reason);
     }
+
+    public static ApplicationError notFound(String resource, String reason) {
+        return new ApplicationError("%s_NOT_FOUND".formatted(resource.toUpperCase()),
+                "%s not found".formatted(resource),
+                reason);
+    }
 }
