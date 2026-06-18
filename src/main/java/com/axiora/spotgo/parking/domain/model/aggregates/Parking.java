@@ -22,12 +22,24 @@ public class Parking extends AbstractAggregateRoot<Parking> {
     @Column(name = "total_spots", nullable = false)
     private Integer totalSpots;
 
+    @Column(nullable = true)
+    private Double rating;
+
+    @Column(name = "price_per_hour", nullable = true)
+    private Double pricePerHour;
+
     public Parking() {
     }
 
-    public Parking(String name, String location, Integer totalSpots) {
+    public Parking(String name, String location, Integer totalSpots, Double rating, Double pricePerHour) {
         this.name = name;
         this.location = location;
         this.totalSpots = totalSpots;
+        this.rating = rating;
+        this.pricePerHour = pricePerHour;
+    }
+
+    public void updateRating(Double rating) {
+        this.rating = rating;
     }
 }

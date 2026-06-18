@@ -4,6 +4,7 @@ import com.axiora.spotgo.parking.domain.model.commands.CreateBlueprintCommand;
 import com.axiora.spotgo.parking.domain.model.commands.CreateParkingCommand;
 import com.axiora.spotgo.parking.domain.model.commands.ReserveSpotCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateSpotStatusCommand;
+import com.axiora.spotgo.parking.domain.model.commands.UpdateParkingRatingCommand;
 import com.axiora.spotgo.parking.domain.model.aggregates.Blueprint;
 import com.axiora.spotgo.parking.domain.model.aggregates.Parking;
 import com.axiora.spotgo.parking.domain.model.aggregates.DetectedSpot;
@@ -16,4 +17,5 @@ public interface ParkingCommandService {
     Optional<Blueprint> handle(CreateBlueprintCommand command);
     Optional<DetectedSpot> handle(UpdateSpotStatusCommand command);
     Optional<Reservation> handle(ReserveSpotCommand command);
+    Optional<Parking> handle(UpdateParkingRatingCommand command);
 }

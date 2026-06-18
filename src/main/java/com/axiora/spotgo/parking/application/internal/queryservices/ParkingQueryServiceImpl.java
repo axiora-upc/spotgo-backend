@@ -9,6 +9,7 @@ import com.axiora.spotgo.parking.domain.model.queries.GetBlueprintsByParkingIdQu
 import com.axiora.spotgo.parking.domain.model.queries.GetParkingByIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetReservationsBySpotIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetSpotsByBlueprintIdQuery;
+import com.axiora.spotgo.parking.domain.model.queries.GetAllReservationsQuery;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.BlueprintRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.DetectedSpotRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ParkingRepository;
@@ -56,5 +57,10 @@ public class ParkingQueryServiceImpl implements ParkingQueryService {
     @Override
     public List<Reservation> handle(GetReservationsBySpotIdQuery query) {
         return reservationRepository.findBySpotId(query.spotId());
+    }
+
+    @Override
+    public List<Reservation> handle(GetAllReservationsQuery query) {
+        return reservationRepository.findAll();
     }
 }

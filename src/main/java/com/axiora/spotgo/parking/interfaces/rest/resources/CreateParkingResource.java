@@ -3,5 +3,7 @@ package com.axiora.spotgo.parking.interfaces.rest.resources;
 public record CreateParkingResource(
         String name,
         String location,
-        Integer totalSpots
+        Integer totalSpots,
+        Double rating,
+        Double pricePerHour
 ) {}

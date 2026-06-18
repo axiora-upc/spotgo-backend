@@ -8,6 +8,7 @@ import com.axiora.spotgo.parking.domain.model.commands.CreateBlueprintCommand;
 import com.axiora.spotgo.parking.domain.model.commands.CreateParkingCommand;
 import com.axiora.spotgo.parking.domain.model.commands.ReserveSpotCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateSpotStatusCommand;
+import com.axiora.spotgo.parking.domain.model.commands.UpdateParkingRatingCommand;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.BlueprintRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.DetectedSpotRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ParkingRepository;
@@ -33,7 +34,7 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
 
     @Override
     public Optional<Parking> handle(CreateParkingCommand command) {
-        var parking = new Parking(command.name(), command.location(), command.totalSpots());
+        var parking = new Parking(command.name(), command.location(), command.totalSpots(), command.rating(), command.pricePerHour());
         return Optional.of(parkingRepository.save(parking));
     }
 
@@ -62,5 +63,16 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
         }
         var reservation = new Reservation(command.vehiclePlate(), command.spotId(), command.startTime(), command.endTime());
         return Optional.of(reservationRepository.save(reservation));
+    }
+
+    @Override
+    public Optional<Parking> handle(UpdateParkingRatingCommand command) {
+        var parkingOpt = parkingRepository.findById(command.parkingId());
+        if (parkingOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        var parking = parkingOpt.get();
+        parking.updateRating(command.rating());
+        return Optional.of(parkingRepository.save(parking));
     }
 }
