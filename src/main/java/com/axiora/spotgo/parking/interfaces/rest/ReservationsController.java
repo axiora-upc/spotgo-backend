@@ -3,6 +3,7 @@ package com.axiora.spotgo.parking.interfaces.rest;
 import com.axiora.spotgo.parking.domain.model.aggregates.Reservation;
 import com.axiora.spotgo.parking.domain.model.commands.ReserveSpotCommand;
 import com.axiora.spotgo.parking.domain.model.queries.GetReservationsBySpotIdQuery;
+import com.axiora.spotgo.parking.domain.model.queries.GetAllReservationsQuery;
 import com.axiora.spotgo.parking.application.internal.commandservices.ParkingCommandService;
 import com.axiora.spotgo.parking.application.internal.queryservices.ParkingQueryService;
 import com.axiora.spotgo.parking.interfaces.rest.resources.CreateReservationResource;
@@ -55,6 +56,23 @@ public class ReservationsController {
     @GetMapping("/spot/{spotId}")
     public ResponseEntity<List<ReservationResource>> getReservationsBySpotId(@PathVariable Long spotId) {
         var reservations = parkingQueryService.handle(new GetReservationsBySpotIdQuery(spotId));
+        var resources = reservations.stream()
+                .map(reservation -> new ReservationResource(
+                        reservation.getId(),
+                        reservation.getVehiclePlate(),
+                        reservation.getSpotId(),
+                        reservation.getStartTime(),
+                        reservation.getEndTime(),
+                        reservation.getStatus().name(),
+                        reservation.getPenalty()
+                ))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(resources);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<ReservationResource>> getAllReservations() {
+        var reservations = parkingQueryService.handle(new GetAllReservationsQuery());
         var resources = reservations.stream()
                 .map(reservation -> new ReservationResource(
                         reservation.getId(),

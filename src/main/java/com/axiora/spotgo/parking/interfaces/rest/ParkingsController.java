@@ -29,7 +29,7 @@ public class ParkingsController {
 
     @PostMapping
     public ResponseEntity<ParkingResource> createParking(@RequestBody CreateParkingResource resource) {
-        var command = new CreateParkingCommand(resource.name(), resource.location(), resource.totalSpots());
+        var command = new CreateParkingCommand(resource.name(), resource.location(), resource.totalSpots(), resource.rating(), resource.pricePerHour());
         var parkingOptional = parkingCommandService.handle(command);
         if (parkingOptional.isEmpty()) {
             return ResponseEntity.badRequest().build();
@@ -39,7 +39,9 @@ public class ParkingsController {
                 createdParking.getId(),
                 createdParking.getName(),
                 createdParking.getLocation(),
-                createdParking.getTotalSpots()
+                createdParking.getTotalSpots(),
+                createdParking.getRating(),
+                createdParking.getPricePerHour()
         );
         return new ResponseEntity<>(parkingResource, HttpStatus.CREATED);
     }
@@ -52,9 +54,41 @@ public class ParkingsController {
                         parking.getId(),
                         parking.getName(),
                         parking.getLocation(),
-                        parking.getTotalSpots()
+                        parking.getTotalSpots(),
+                        parking.getRating(),
+                        parking.getPricePerHour()
                 ))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(resources);
+    }
+
+    @PatchMapping("/{parkingId}")
+    public ResponseEntity<ParkingResource> updateParkingRating(@PathVariable Long parkingId, @RequestBody java.util.Map<String, Object> body) {
+        if (!body.containsKey("rating")) {
+            return ResponseEntity.badRequest().build();
+        }
+        var ratingVal = body.get("rating");
+        Double rating = null;
+        if (ratingVal instanceof Number) {
+            rating = ((Number) ratingVal).doubleValue();
+        }
+        if (rating == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        var command = new com.axiora.spotgo.parking.domain.model.commands.UpdateParkingRatingCommand(parkingId, rating);
+        var updatedParkingOpt = parkingCommandService.handle(command);
+        if (updatedParkingOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        var updatedParking = updatedParkingOpt.get();
+        var parkingResource = new ParkingResource(
+                updatedParking.getId(),
+                updatedParking.getName(),
+                updatedParking.getLocation(),
+                updatedParking.getTotalSpots(),
+                updatedParking.getRating(),
+                updatedParking.getPricePerHour()
+        );
+        return ResponseEntity.ok(parkingResource);
     }
 }

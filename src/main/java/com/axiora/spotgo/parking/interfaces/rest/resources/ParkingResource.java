@@ -4,5 +4,7 @@ public record ParkingResource(
         Long id,
         String name,
         String location,
-        Integer totalSpots
+        Integer totalSpots,
+        Double rating,
+        Double pricePerHour
 ) {}
