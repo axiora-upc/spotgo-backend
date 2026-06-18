@@ -9,6 +9,7 @@ import com.axiora.spotgo.parking.domain.model.commands.CreateParkingCommand;
 import com.axiora.spotgo.parking.domain.model.commands.ReserveSpotCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateSpotStatusCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateParkingRatingCommand;
+import com.axiora.spotgo.parking.domain.model.commands.CreateDetectedSpotCommand;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.BlueprintRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.DetectedSpotRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ParkingRepository;
@@ -74,5 +75,14 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
         var parking = parkingOpt.get();
         parking.updateRating(command.rating());
         return Optional.of(parkingRepository.save(parking));
+    }
+
+    @Override
+    public Optional<DetectedSpot> handle(CreateDetectedSpotCommand command) {
+        if (!blueprintRepository.existsById(command.blueprintId())) {
+            throw new IllegalArgumentException("Blueprint does not exist");
+        }
+        var spot = new DetectedSpot(command.coordinates(), command.blueprintId());
+        return Optional.of(detectedSpotRepository.save(spot));
     }
 }

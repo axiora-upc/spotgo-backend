@@ -55,4 +55,23 @@ public class DetectedSpotsController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+    @PostMapping
+    public ResponseEntity<DetectedSpotResource> createDetectedSpot(@RequestBody com.axiora.spotgo.parking.interfaces.rest.resources.CreateDetectedSpotResource resource) {
+        var coordinates = new com.axiora.spotgo.parking.domain.model.valueobjects.Coordinates(resource.x(), resource.y());
+        var command = new com.axiora.spotgo.parking.domain.model.commands.CreateDetectedSpotCommand(coordinates, resource.blueprintId());
+        var spotOptional = parkingCommandService.handle(command);
+        if (spotOptional.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        var createdSpot = spotOptional.get();
+        var spotResource = new DetectedSpotResource(
+                createdSpot.getId(),
+                createdSpot.getCoordinates().getX(),
+                createdSpot.getCoordinates().getY(),
+                createdSpot.getStatus().name(),
+                createdSpot.getBlueprintId()
+        );
+        return new org.springframework.http.ResponseEntity<>(spotResource, org.springframework.http.HttpStatus.CREATED);
+    }
 }
