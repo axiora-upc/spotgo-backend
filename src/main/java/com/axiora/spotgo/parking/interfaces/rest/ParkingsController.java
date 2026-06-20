@@ -10,6 +10,7 @@ import com.axiora.spotgo.parking.interfaces.rest.resources.CreateParkingResource
 import com.axiora.spotgo.parking.interfaces.rest.resources.ParkingResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/parkings")
+@Tag(name = "Parkings")
 public class ParkingsController {
 
     private final ParkingCommandService parkingCommandService;

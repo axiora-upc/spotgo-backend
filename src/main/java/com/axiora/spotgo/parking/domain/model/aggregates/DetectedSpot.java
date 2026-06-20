@@ -7,7 +7,7 @@ import lombok.Getter;
 import org.springframework.data.domain.AbstractAggregateRoot;
 
 @Entity
-@Table(name = "detected_spots")
+@Table(name = "detectedSpots")
 @Getter
 public class DetectedSpot extends AbstractAggregateRoot<DetectedSpot> {
 
@@ -22,7 +22,7 @@ public class DetectedSpot extends AbstractAggregateRoot<DetectedSpot> {
     @Column(nullable = false)
     private SpotStatus status;
 
-    @Column(name = "blueprint_id", nullable = false)
+    @Column(name = "blueprintId", nullable = false)
     private Long blueprintId;
 
     public DetectedSpot() {

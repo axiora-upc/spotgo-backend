@@ -19,13 +19,13 @@ public class Parking extends AbstractAggregateRoot<Parking> {
     @Column(nullable = false)
     private String location;
 
-    @Column(name = "total_spots", nullable = false)
+    @Column(name = "totalSpots", nullable = false)
     private Integer totalSpots;
 
     @Column(nullable = true)
     private Double rating;
 
-    @Column(name = "price_per_hour", nullable = true)
+    @Column(name = "pricePerHour", nullable = true)
     private Double pricePerHour;
 
     public Parking() {

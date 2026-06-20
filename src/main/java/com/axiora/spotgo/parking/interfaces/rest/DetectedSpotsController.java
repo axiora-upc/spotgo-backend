@@ -8,13 +8,15 @@ import com.axiora.spotgo.parking.application.internal.commandservices.ParkingCom
 import com.axiora.spotgo.parking.application.internal.queryservices.ParkingQueryService;
 import com.axiora.spotgo.parking.interfaces.rest.resources.DetectedSpotResource;
 import org.springframework.http.ResponseEntity;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/v1/detected-spots")
+@RequestMapping("/api/v1/detectedSpots")
+@Tag(name = "DetectedSpots")
 public class DetectedSpotsController {
 
     private final ParkingCommandService parkingCommandService;
