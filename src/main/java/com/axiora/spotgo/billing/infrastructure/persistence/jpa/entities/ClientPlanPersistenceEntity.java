@@ -6,7 +6,7 @@ import jakarta.persistence.*;
 import java.util.List;
 
 @Entity
-@Table(name = "client_plans")
+@Table(name = "clientPlans")
 public class ClientPlanPersistenceEntity extends AuditableAbstractPersistenceEntity {
 
     @Column(nullable = false)
@@ -28,7 +28,7 @@ public class ClientPlanPersistenceEntity extends AuditableAbstractPersistenceEnt
     private Double discountPercent;
 
     @ElementCollection
-    @CollectionTable(name = "client_plan_features", joinColumns = @JoinColumn(name = "client_plan_id"))
+    @CollectionTable(name = "clientPlanFeatures", joinColumns = @JoinColumn(name = "clientPlanId"))
     @Column(name = "feature")
     private List<String> features;
 
