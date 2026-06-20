@@ -1,0 +1,21 @@
+package com.axiora.spotgo.billing.interfaces.rest.transform;
+
+import com.axiora.spotgo.billing.domain.model.commands.CreateReceiptCommand;
+import com.axiora.spotgo.billing.interfaces.rest.resources.CreateReceiptResource;
+
+public class CreateReceiptCommandFromResourceAssembler {
+
+    public static CreateReceiptCommand toCommandFromResource(CreateReceiptResource resource) {
+        return new CreateReceiptCommand(
+                resource.clientId(),
+                resource.invoiceNumber(),
+                resource.locationName(),
+                resource.date(),
+                resource.durationHours(),
+                resource.durationMinutes(),
+                resource.paymentMethod(),
+                resource.bookingCode(),
+                resource.amount()
+        );
+    }
+}

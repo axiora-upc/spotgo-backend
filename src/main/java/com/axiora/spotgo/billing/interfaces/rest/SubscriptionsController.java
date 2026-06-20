@@ -1,0 +1,155 @@
+package com.axiora.spotgo.billing.interfaces.rest;
+
+import com.axiora.spotgo.billing.application.commandservices.SubscriptionCommandService;
+import com.axiora.spotgo.billing.application.queryservices.SubscriptionQueryService;
+import com.axiora.spotgo.billing.domain.model.queries.GetAllSubscriptionsQuery;
+import com.axiora.spotgo.billing.domain.model.queries.GetSubscriptionByIdQuery;
+import com.axiora.spotgo.billing.domain.model.commands.PatchSubscriptionSavingsCommand;
+import com.axiora.spotgo.billing.interfaces.rest.resources.CreateSubscriptionResource;
+import com.axiora.spotgo.billing.interfaces.rest.resources.PatchSubscriptionSavingsResource;
+import com.axiora.spotgo.billing.interfaces.rest.resources.SubscriptionResource;
+import com.axiora.spotgo.billing.interfaces.rest.resources.UpdateSubscriptionResource;
+import com.axiora.spotgo.billing.interfaces.rest.transform.CreateSubscriptionCommandFromResourceAssembler;
+import com.axiora.spotgo.billing.interfaces.rest.transform.SubscriptionResourceFromEntityAssembler;
+import com.axiora.spotgo.billing.interfaces.rest.transform.UpdateSubscriptionCommandFromResourceAssembler;
+import com.axiora.spotgo.shared.application.result.ApplicationError;
+import com.axiora.spotgo.shared.interfaces.rest.transform.ErrorResponseAssembler;
+import com.axiora.spotgo.shared.interfaces.rest.transform.ResponseEntityAssembler;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import static org.springframework.web.bind.annotation.RequestMethod.PATCH;
+
+import java.util.Collections;
+import java.util.List;
+
+@RestController
+@RequestMapping(value = "/api/v1/subscriptions", produces = MediaType.APPLICATION_JSON_VALUE)
+@Tag(name = "Subscriptions", description = "Endpoints for managing client subscriptions")
+public class SubscriptionsController {
+
+    private final SubscriptionCommandService subscriptionCommandService;
+    private final SubscriptionQueryService subscriptionQueryService;
+
+    public SubscriptionsController(SubscriptionCommandService subscriptionCommandService,
+                                   SubscriptionQueryService subscriptionQueryService) {
+        this.subscriptionCommandService = subscriptionCommandService;
+        this.subscriptionQueryService = subscriptionQueryService;
+    }
+
+    @PostMapping
+    @Operation(summary = "Create a subscription", description = "Creates a new subscription for a client.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Subscription created successfully",
+                    content = @Content(schema = @Schema(implementation = SubscriptionResource.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid input data")
+    })
+    public ResponseEntity<?> createSubscription(@Valid @RequestBody CreateSubscriptionResource resource) {
+        var command = CreateSubscriptionCommandFromResourceAssembler.toCommandFromResource(resource);
+        var result = subscriptionCommandService.handle(command);
+        return ResponseEntityAssembler.toResponseEntityFromResult(
+                result,
+                SubscriptionResourceFromEntityAssembler::toResourceFromEntity,
+                HttpStatus.CREATED
+        );
+    }
+
+    @GetMapping
+    @Operation(summary = "Get all subscriptions", description = "Returns all subscriptions.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Subscriptions retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = SubscriptionResource.class)))
+    })
+    public ResponseEntity<List<SubscriptionResource>> getAllSubscriptions() {
+        var subscriptions = subscriptionQueryService.handle(new GetAllSubscriptionsQuery());
+        if (subscriptions.isEmpty()) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
+        var resources = subscriptions.stream()
+                .map(SubscriptionResourceFromEntityAssembler::toResourceFromEntity)
+                .toList();
+        return ResponseEntity.ok(resources);
+    }
+
+    @GetMapping("/{subscriptionId}")
+    @Operation(summary = "Get subscription by ID", description = "Returns a specific subscription by its ID.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Subscription found",
+                    content = @Content(schema = @Schema(implementation = SubscriptionResource.class))),
+            @ApiResponse(responseCode = "404", description = "Subscription not found")
+    })
+    public ResponseEntity<?> getSubscriptionById(
+            @PathVariable
+            @Parameter(description = "Subscription unique identifier", example = "1", required = true)
+            Long subscriptionId
+    ) {
+        var query = new GetSubscriptionByIdQuery(subscriptionId);
+        var subscription = subscriptionQueryService.handle(query);
+        if (subscription.isEmpty()) {
+            var error = ApplicationError.notFound("Subscription", "Subscription with ID %d not found".formatted(subscriptionId));
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(error);
+        }
+        return ResponseEntity.ok(SubscriptionResourceFromEntityAssembler.toResourceFromEntity(subscription.get()));
+    }
+
+    @PutMapping("/{subscriptionId}")
+    @Operation(summary = "Update a subscription",
+            description = "Updates a subscription. Used for switching plans, toggling auto-renewal, or updating payment method.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Subscription updated successfully",
+                    content = @Content(schema = @Schema(implementation = SubscriptionResource.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid input data"),
+            @ApiResponse(responseCode = "404", description = "Subscription not found")
+    })
+    public ResponseEntity<?> updateSubscription(
+            @PathVariable
+            @Parameter(description = "Subscription unique identifier", example = "1", required = true)
+            Long subscriptionId,
+            @Valid @RequestBody UpdateSubscriptionResource resource
+    ) {
+        var command = UpdateSubscriptionCommandFromResourceAssembler.toCommandFromResource(subscriptionId, resource);
+        var result = subscriptionCommandService.handle(command);
+        return ResponseEntityAssembler.toResponseEntityFromResult(
+                result,
+                SubscriptionResourceFromEntityAssembler::toResourceFromEntity,
+                HttpStatus.OK
+        );
+    }
+
+    @RequestMapping(method = PATCH, value = "/{subscriptionId}")
+    @Operation(summary = "Patch subscription savings",
+            description = "Partially updates savedThisMonth and savingsMonth of a subscription.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Subscription savings updated",
+                    content = @Content(schema = @Schema(implementation = SubscriptionResource.class))),
+            @ApiResponse(responseCode = "404", description = "Subscription not found")
+    })
+    public ResponseEntity<?> patchSubscriptionSavings(
+            @PathVariable
+            @Parameter(description = "Subscription unique identifier", example = "1", required = true)
+            Long subscriptionId,
+            @Valid @RequestBody PatchSubscriptionSavingsResource resource
+    ) {
+        var command = new PatchSubscriptionSavingsCommand(
+                subscriptionId,
+                resource.savedThisMonth(),
+                resource.savingsMonth()
+        );
+        var result = subscriptionCommandService.handle(command);
+        return ResponseEntityAssembler.toResponseEntityFromResult(
+                result,
+                SubscriptionResourceFromEntityAssembler::toResourceFromEntity,
+                HttpStatus.OK
+        );
+    }
+}
