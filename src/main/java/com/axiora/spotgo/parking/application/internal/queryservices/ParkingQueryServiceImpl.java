@@ -4,6 +4,7 @@ import com.axiora.spotgo.parking.domain.model.aggregates.Blueprint;
 import com.axiora.spotgo.parking.domain.model.aggregates.DetectedSpot;
 import com.axiora.spotgo.parking.domain.model.aggregates.Parking;
 import com.axiora.spotgo.parking.domain.model.aggregates.Reservation;
+import com.axiora.spotgo.parking.domain.model.aggregates.ClientReport;
 import com.axiora.spotgo.parking.domain.model.queries.GetAllParkingsQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetBlueprintsByParkingIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetParkingByIdQuery;
@@ -13,10 +14,12 @@ import com.axiora.spotgo.parking.domain.model.queries.GetReservationsByParkingId
 import com.axiora.spotgo.parking.domain.model.queries.GetDetectedSpotsByParkingIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetAllDetectedSpotsQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetAllBlueprintsQuery;
+import com.axiora.spotgo.parking.domain.model.queries.GetAllClientReportsQuery;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.BlueprintRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.DetectedSpotRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ParkingRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ReservationRepository;
+import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ClientReportRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -29,12 +32,14 @@ public class ParkingQueryServiceImpl implements ParkingQueryService {
     private final BlueprintRepository blueprintRepository;
     private final DetectedSpotRepository detectedSpotRepository;
     private final ReservationRepository reservationRepository;
+    private final ClientReportRepository clientReportRepository;
 
-    public ParkingQueryServiceImpl(ParkingRepository parkingRepository, BlueprintRepository blueprintRepository, DetectedSpotRepository detectedSpotRepository, ReservationRepository reservationRepository) {
+    public ParkingQueryServiceImpl(ParkingRepository parkingRepository, BlueprintRepository blueprintRepository, DetectedSpotRepository detectedSpotRepository, ReservationRepository reservationRepository, ClientReportRepository clientReportRepository) {
         this.parkingRepository = parkingRepository;
         this.blueprintRepository = blueprintRepository;
         this.detectedSpotRepository = detectedSpotRepository;
         this.reservationRepository = reservationRepository;
+        this.clientReportRepository = clientReportRepository;
     }
 
     @Override
@@ -80,5 +85,10 @@ public class ParkingQueryServiceImpl implements ParkingQueryService {
     @Override
     public List<Blueprint> handle(GetAllBlueprintsQuery query) {
         return blueprintRepository.findAll();
+    }
+
+    @Override
+    public List<ClientReport> handle(GetAllClientReportsQuery query) {
+        return clientReportRepository.findAll();
     }
 }
