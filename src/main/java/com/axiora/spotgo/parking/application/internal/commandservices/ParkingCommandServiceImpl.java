@@ -10,6 +10,7 @@ import com.axiora.spotgo.parking.domain.model.commands.ReserveSpotCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateSpotStatusCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateParkingRatingCommand;
 import com.axiora.spotgo.parking.domain.model.commands.CreateDetectedSpotCommand;
+import com.axiora.spotgo.parking.domain.model.commands.DeleteBlueprintCommand;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.BlueprintRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.DetectedSpotRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ParkingRepository;
@@ -35,7 +36,12 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
 
     @Override
     public Optional<Parking> handle(CreateParkingCommand command) {
-        var parking = new Parking(command.name(), command.location(), command.totalSpots(), command.rating(), command.pricePerHour());
+        var parking = new Parking(
+                command.adminId(), command.name(), command.address(), command.city(),
+                command.totalSpaces(), command.availableSpaces(), command.totalFloors(),
+                command.averageOccupancy(), command.occupancyTrendPercent(), command.peakHour(),
+                command.totalRevenue(), command.systemStatus(), command.rating(), command.pricePerHour(),
+                command.revenueTrendPercent(), command.totalCapacity(), command.efficiencyIndex());
         return Optional.of(parkingRepository.save(parking));
     }
 
@@ -44,7 +50,7 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
         if (!parkingRepository.existsById(command.parkingId())) {
             throw new IllegalArgumentException("Parking does not exist");
         }
-        var blueprint = new Blueprint(command.imageUrl(), command.parkingId());
+        var blueprint = new Blueprint(command.adminId(), command.parkingId(), command.name(), command.dataUrl());
         return Optional.of(blueprintRepository.save(blueprint));
     }
 
@@ -59,10 +65,10 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
 
     @Override
     public Optional<Reservation> handle(ReserveSpotCommand command) {
-        if (!detectedSpotRepository.existsById(command.spotId())) {
-            throw new IllegalArgumentException("Spot does not exist");
-        }
-        var reservation = new Reservation(command.vehiclePlate(), command.spotId(), command.startTime(), command.endTime());
+        var reservation = new Reservation(
+                command.clientId(), command.parkingId(), command.code(), command.spot(),
+                command.startDate(), command.endDate(),
+                command.amount(), command.baseAmount(), command.rating());
         return Optional.of(reservationRepository.save(reservation));
     }
 
@@ -82,7 +88,16 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
         if (!blueprintRepository.existsById(command.blueprintId())) {
             throw new IllegalArgumentException("Blueprint does not exist");
         }
-        var spot = new DetectedSpot(command.coordinates(), command.blueprintId());
+        var spot = new DetectedSpot(
+                command.localId(), command.blueprintId(), command.parkingId(),
+                command.row(), command.col(),
+                command.xPct(), command.yPct(), command.wPct(), command.hPct(),
+                command.status());
         return Optional.of(detectedSpotRepository.save(spot));
+    }
+
+    @Override
+    public void handle(DeleteBlueprintCommand command) {
+        blueprintRepository.deleteById(command.blueprintId());
     }
 }

@@ -3,6 +3,8 @@ package com.axiora.spotgo.parking.interfaces.rest;
 import com.axiora.spotgo.parking.domain.model.aggregates.Blueprint;
 import com.axiora.spotgo.parking.domain.model.commands.CreateBlueprintCommand;
 import com.axiora.spotgo.parking.domain.model.queries.GetBlueprintsByParkingIdQuery;
+import com.axiora.spotgo.parking.domain.model.queries.GetAllBlueprintsQuery;
+import com.axiora.spotgo.parking.domain.model.commands.DeleteBlueprintCommand;
 import com.axiora.spotgo.parking.application.internal.commandservices.ParkingCommandService;
 import com.axiora.spotgo.parking.application.internal.queryservices.ParkingQueryService;
 import com.axiora.spotgo.parking.interfaces.rest.resources.BlueprintResource;
@@ -30,31 +32,53 @@ public class BlueprintsController {
 
     @PostMapping
     public ResponseEntity<BlueprintResource> createBlueprint(@RequestBody CreateBlueprintResource resource) {
-        var command = new CreateBlueprintCommand(resource.imageUrl(), resource.parkingId());
+        var command = new CreateBlueprintCommand(resource.adminId(), resource.parkingId(), resource.name(), resource.dataUrl());
         var blueprintOptional = parkingCommandService.handle(command);
         if (blueprintOptional.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
-        
+
         var createdBlueprint = blueprintOptional.get();
-        var blueprintResource = new BlueprintResource(
-                createdBlueprint.getId(),
-                createdBlueprint.getImageUrl(),
-                createdBlueprint.getParkingId()
-        );
+        var blueprintResource = toResource(createdBlueprint);
         return new ResponseEntity<>(blueprintResource, HttpStatus.CREATED);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<BlueprintResource>> getAllBlueprints(@RequestParam(required = false) Long parkingId) {
+        List<Blueprint> blueprints;
+        if (parkingId != null) {
+            blueprints = parkingQueryService.handle(new GetBlueprintsByParkingIdQuery(parkingId));
+        } else {
+            blueprints = parkingQueryService.handle(new GetAllBlueprintsQuery());
+        }
+        var resources = blueprints.stream()
+                .map(this::toResource)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(resources);
     }
 
     @GetMapping("/parking/{parkingId}")
     public ResponseEntity<List<BlueprintResource>> getBlueprintsByParkingId(@PathVariable Long parkingId) {
         var blueprints = parkingQueryService.handle(new GetBlueprintsByParkingIdQuery(parkingId));
         var resources = blueprints.stream()
-                .map(blueprint -> new BlueprintResource(
-                        blueprint.getId(),
-                        blueprint.getImageUrl(),
-                        blueprint.getParkingId()
-                ))
+                .map(this::toResource)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(resources);
+    }
+
+    @DeleteMapping("/{blueprintId}")
+    public ResponseEntity<Void> deleteBlueprint(@PathVariable Long blueprintId) {
+        parkingCommandService.handle(new DeleteBlueprintCommand(blueprintId));
+        return ResponseEntity.noContent().build();
+    }
+
+    private BlueprintResource toResource(Blueprint blueprint) {
+        return new BlueprintResource(
+                blueprint.getId(),
+                blueprint.getAdminId(),
+                blueprint.getParkingId(),
+                blueprint.getName(),
+                blueprint.getDataUrl()
+        );
     }
 }

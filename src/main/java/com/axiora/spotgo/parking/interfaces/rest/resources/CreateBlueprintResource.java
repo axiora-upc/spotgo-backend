@@ -1,6 +1,8 @@
 package com.axiora.spotgo.parking.interfaces.rest.resources;
 
 public record CreateBlueprintResource(
-        String imageUrl,
-        Long parkingId
+        Long adminId,
+        Long parkingId,
+        String name,
+        String dataUrl
 ) {}

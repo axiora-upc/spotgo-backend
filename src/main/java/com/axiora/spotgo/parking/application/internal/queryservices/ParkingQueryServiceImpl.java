@@ -7,9 +7,12 @@ import com.axiora.spotgo.parking.domain.model.aggregates.Reservation;
 import com.axiora.spotgo.parking.domain.model.queries.GetAllParkingsQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetBlueprintsByParkingIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetParkingByIdQuery;
-import com.axiora.spotgo.parking.domain.model.queries.GetReservationsBySpotIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetSpotsByBlueprintIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetAllReservationsQuery;
+import com.axiora.spotgo.parking.domain.model.queries.GetReservationsByParkingIdQuery;
+import com.axiora.spotgo.parking.domain.model.queries.GetDetectedSpotsByParkingIdQuery;
+import com.axiora.spotgo.parking.domain.model.queries.GetAllDetectedSpotsQuery;
+import com.axiora.spotgo.parking.domain.model.queries.GetAllBlueprintsQuery;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.BlueprintRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.DetectedSpotRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ParkingRepository;
@@ -55,12 +58,27 @@ public class ParkingQueryServiceImpl implements ParkingQueryService {
     }
 
     @Override
-    public List<Reservation> handle(GetReservationsBySpotIdQuery query) {
-        return reservationRepository.findBySpotId(query.spotId());
+    public List<Reservation> handle(GetAllReservationsQuery query) {
+        return reservationRepository.findAll();
     }
 
     @Override
-    public List<Reservation> handle(GetAllReservationsQuery query) {
-        return reservationRepository.findAll();
+    public List<Reservation> handle(GetReservationsByParkingIdQuery query) {
+        return reservationRepository.findByParkingId(query.parkingId());
+    }
+
+    @Override
+    public List<DetectedSpot> handle(GetDetectedSpotsByParkingIdQuery query) {
+        return detectedSpotRepository.findByParkingId(query.parkingId());
+    }
+
+    @Override
+    public List<DetectedSpot> handle(GetAllDetectedSpotsQuery query) {
+        return detectedSpotRepository.findAll();
+    }
+
+    @Override
+    public List<Blueprint> handle(GetAllBlueprintsQuery query) {
+        return blueprintRepository.findAll();
     }
 }

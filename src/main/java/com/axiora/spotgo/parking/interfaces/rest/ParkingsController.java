@@ -31,20 +31,18 @@ public class ParkingsController {
 
     @PostMapping
     public ResponseEntity<ParkingResource> createParking(@RequestBody CreateParkingResource resource) {
-        var command = new CreateParkingCommand(resource.name(), resource.location(), resource.totalSpots(), resource.rating(), resource.pricePerHour());
+        var command = new CreateParkingCommand(
+                resource.adminId(), resource.name(), resource.address(), resource.city(),
+                resource.totalSpaces(), resource.availableSpaces(), resource.totalFloors(),
+                resource.averageOccupancy(), resource.occupancyTrendPercent(), resource.peakHour(),
+                resource.totalRevenue(), resource.systemStatus(), resource.rating(), resource.pricePerHour(),
+                resource.revenueTrendPercent(), resource.totalCapacity(), resource.efficiencyIndex());
         var parkingOptional = parkingCommandService.handle(command);
         if (parkingOptional.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
         var createdParking = parkingOptional.get();
-        var parkingResource = new ParkingResource(
-                createdParking.getId(),
-                createdParking.getName(),
-                createdParking.getLocation(),
-                createdParking.getTotalSpots(),
-                createdParking.getRating(),
-                createdParking.getPricePerHour()
-        );
+        var parkingResource = toResource(createdParking);
         return new ResponseEntity<>(parkingResource, HttpStatus.CREATED);
     }
 
@@ -52,14 +50,7 @@ public class ParkingsController {
     public ResponseEntity<List<ParkingResource>> getAllParkings() {
         var parkings = parkingQueryService.handle(new GetAllParkingsQuery());
         var resources = parkings.stream()
-                .map(parking -> new ParkingResource(
-                        parking.getId(),
-                        parking.getName(),
-                        parking.getLocation(),
-                        parking.getTotalSpots(),
-                        parking.getRating(),
-                        parking.getPricePerHour()
-                ))
+                .map(this::toResource)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(resources);
     }
@@ -83,14 +74,29 @@ public class ParkingsController {
             return ResponseEntity.notFound().build();
         }
         var updatedParking = updatedParkingOpt.get();
-        var parkingResource = new ParkingResource(
-                updatedParking.getId(),
-                updatedParking.getName(),
-                updatedParking.getLocation(),
-                updatedParking.getTotalSpots(),
-                updatedParking.getRating(),
-                updatedParking.getPricePerHour()
+        return ResponseEntity.ok(toResource(updatedParking));
+    }
+
+    private ParkingResource toResource(Parking parking) {
+        return new ParkingResource(
+                parking.getId(),
+                parking.getAdminId(),
+                parking.getName(),
+                parking.getAddress(),
+                parking.getCity(),
+                parking.getTotalSpaces(),
+                parking.getAvailableSpaces(),
+                parking.getTotalFloors(),
+                parking.getAverageOccupancy(),
+                parking.getOccupancyTrendPercent(),
+                parking.getPeakHour(),
+                parking.getTotalRevenue(),
+                parking.getSystemStatus(),
+                parking.getRating(),
+                parking.getPricePerHour(),
+                parking.getRevenueTrendPercent(),
+                parking.getTotalCapacity(),
+                parking.getEfficiencyIndex()
         );
-        return ResponseEntity.ok(parkingResource);
     }
 }
