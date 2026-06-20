@@ -21,7 +21,7 @@ public final class ReceiptPersistenceAssembler {
                 entity.getPaymentMethod(),
                 entity.getBookingCode(),
                 entity.getAmount(),
-                ReceiptStatus.valueOf(entity.getStatus())
+                ReceiptStatus.valueOf(entity.getStatus().toUpperCase())
         );
     }
 

@@ -69,7 +69,7 @@ public class ReceiptsController {
     })
     public ResponseEntity<List<ReceiptResource>> getAllReceipts(
             @RequestParam(required = false)
-            @Parameter(description = "Filter receipts by booking code", example = "BK-2024-001")
+            @Parameter(description = "Filter receipts by booking code")
             String bookingCode
     ) {
         var receipts = (bookingCode != null && !bookingCode.isBlank())

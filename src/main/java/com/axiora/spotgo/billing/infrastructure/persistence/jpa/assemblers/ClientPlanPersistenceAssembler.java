@@ -12,7 +12,7 @@ public final class ClientPlanPersistenceAssembler {
     public static ClientPlan toDomainFromPersistence(ClientPlanPersistenceEntity entity) {
         return new ClientPlan(
                 entity.getId(),
-                PlanType.valueOf(entity.getType()),
+                PlanType.valueOf(entity.getType().toUpperCase()),
                 entity.getName(),
                 entity.getMonthlyPrice(),
                 entity.getDescription(),
