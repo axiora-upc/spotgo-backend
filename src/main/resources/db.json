@@ -168,18 +168,6 @@
       "shiftStart": "09:00",
       "shiftEnd": "21:00",
       "status": "on-duty"
-    },
-    {
-      "id": "emp-006",
-      "parkingId": "prk-001",
-      "firstName": "Nes",
-      "lastName": "Rojas",
-      "role": "guard",
-      "schedule": "all-week",
-      "shiftStart": "09:00",
-      "shiftEnd": "17:00",
-      "bookingCode": "a23",
-      "status": "on-duty"
     }
   ],
   "reservations": [
