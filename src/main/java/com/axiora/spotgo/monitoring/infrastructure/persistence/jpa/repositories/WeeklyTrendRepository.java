@@ -1,0 +1,12 @@
+package com.axiora.spotgo.monitoring.infrastructure.persistence.jpa.repositories;
+
+import com.axiora.spotgo.monitoring.domain.model.aggregates.WeeklyTrend;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface WeeklyTrendRepository extends JpaRepository<WeeklyTrend, Long> {
+    List<WeeklyTrend> findByParkingId(Long parkingId);
+}
