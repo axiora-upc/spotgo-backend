@@ -4,12 +4,24 @@ import com.axiora.spotgo.parking.domain.model.aggregates.Blueprint;
 import com.axiora.spotgo.parking.domain.model.aggregates.DetectedSpot;
 import com.axiora.spotgo.parking.domain.model.aggregates.Parking;
 import com.axiora.spotgo.parking.domain.model.aggregates.Reservation;
+import com.axiora.spotgo.parking.domain.model.aggregates.ClientReport;
 import com.axiora.spotgo.parking.domain.model.valueobjects.ReservationStatus;
 import com.axiora.spotgo.parking.domain.model.valueobjects.SpotStatus;
+import com.axiora.spotgo.parking.domain.model.valueobjects.ReportType;
+import com.axiora.spotgo.parking.domain.model.valueobjects.ReportStatus;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.BlueprintRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.DetectedSpotRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ParkingRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ReservationRepository;
+import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ClientReportRepository;
+import com.axiora.spotgo.monitoring.domain.model.aggregates.Employee;
+import com.axiora.spotgo.monitoring.domain.model.aggregates.OccupancyByHour;
+import com.axiora.spotgo.monitoring.domain.model.aggregates.WeeklyTrend;
+import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeRole;
+import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeStatus;
+import com.axiora.spotgo.monitoring.infrastructure.persistence.jpa.repositories.EmployeeRepository;
+import com.axiora.spotgo.monitoring.infrastructure.persistence.jpa.repositories.OccupancyByHourRepository;
+import com.axiora.spotgo.monitoring.infrastructure.persistence.jpa.repositories.WeeklyTrendRepository;
 import com.axiora.spotgo.billing.infrastructure.persistence.jpa.entities.ClientPlanPersistenceEntity;
 import com.axiora.spotgo.billing.infrastructure.persistence.jpa.entities.SubscriptionPersistenceEntity;
 import com.axiora.spotgo.billing.infrastructure.persistence.jpa.entities.ReceiptPersistenceEntity;
@@ -40,9 +52,13 @@ public class DbSeeder implements CommandLineRunner {
     private final BlueprintRepository blueprintRepository;
     private final DetectedSpotRepository detectedSpotRepository;
     private final ReservationRepository reservationRepository;
+    private final ClientReportRepository clientReportRepository;
     private final ClientPlanPersistenceRepository clientPlanRepository;
     private final SubscriptionPersistenceRepository subscriptionRepository;
     private final ReceiptPersistenceRepository receiptRepository;
+    private final EmployeeRepository employeeRepository;
+    private final OccupancyByHourRepository occupancyByHourRepository;
+    private final WeeklyTrendRepository weeklyTrendRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${app.seeder.reset-before-seed:false}")
@@ -52,16 +68,24 @@ public class DbSeeder implements CommandLineRunner {
                     BlueprintRepository blueprintRepository,
                     DetectedSpotRepository detectedSpotRepository,
                     ReservationRepository reservationRepository,
+                    ClientReportRepository clientReportRepository,
                     ClientPlanPersistenceRepository clientPlanRepository,
                     SubscriptionPersistenceRepository subscriptionRepository,
-                    ReceiptPersistenceRepository receiptRepository) {
+                    ReceiptPersistenceRepository receiptRepository,
+                    EmployeeRepository employeeRepository,
+                    OccupancyByHourRepository occupancyByHourRepository,
+                    WeeklyTrendRepository weeklyTrendRepository) {
         this.parkingRepository = parkingRepository;
         this.blueprintRepository = blueprintRepository;
         this.detectedSpotRepository = detectedSpotRepository;
         this.reservationRepository = reservationRepository;
+        this.clientReportRepository = clientReportRepository;
         this.clientPlanRepository = clientPlanRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.receiptRepository = receiptRepository;
+        this.employeeRepository = employeeRepository;
+        this.occupancyByHourRepository = occupancyByHourRepository;
+        this.weeklyTrendRepository = weeklyTrendRepository;
     }
 
     @Override
@@ -71,6 +95,7 @@ public class DbSeeder implements CommandLineRunner {
         try {
             if (resetBeforeSeed) {
                 log.info("reset-before-seed is true, wiping tables...");
+                clientReportRepository.deleteAll(); // references reservations, delete first
                 reservationRepository.deleteAll();
                 detectedSpotRepository.deleteAll();
                 blueprintRepository.deleteAll();
@@ -78,6 +103,9 @@ public class DbSeeder implements CommandLineRunner {
                 receiptRepository.deleteAll();
                 subscriptionRepository.deleteAll();
                 clientPlanRepository.deleteAll();
+                employeeRepository.deleteAll();
+                occupancyByHourRepository.deleteAll();
+                weeklyTrendRepository.deleteAll();
                 log.info("tables wiped successfully");
             } else if (parkingRepository.count() > 0) {
                 log.info("tables already contain data, skipping seed");
@@ -97,9 +125,13 @@ public class DbSeeder implements CommandLineRunner {
             seedBlueprints(root.get("blueprints"));
             seedDetectedSpots(root.get("detectedSpots"));
             seedReservations(root.get("reservations"));
+            seedClientReports(root.get("clientReports"));
             seedClientPlans(root.get("clientPlans"));
             seedSubscriptions(root.get("subscriptions"));
             seedReceipts(root.get("receipts"));
+            seedEmployees(root.get("employees"));
+            seedOccupancyByHour(root.get("occupancyByHour"));
+            seedWeeklyTrends(root.get("weeklyTrends"));
 
             log.info("seed completed successfully");
         } catch (Exception e) {
@@ -110,6 +142,8 @@ public class DbSeeder implements CommandLineRunner {
     private final Map<String, Long> parkingIdMap = new HashMap<>();
     private final Map<String, Long> blueprintIdMap = new HashMap<>();
     private final Map<String, Long> clientPlanIdMap = new HashMap<>();
+    // maps db.json's reservation ids to the new Postgres-generated ids
+    private final Map<String, Long> reservationIdMap = new HashMap<>();
 
     private void seedParkings(JsonNode parkings) {
         if (parkings == null || !parkings.isArray()) {
@@ -238,7 +272,41 @@ public class DbSeeder implements CommandLineRunner {
                 default -> reservation.updateStatus(ReservationStatus.ACTIVE);
             }
 
-            reservationRepository.save(reservation);
+            var savedReservation = reservationRepository.save(reservation);
+            reservationIdMap.put(node.get("id").asText(), savedReservation.getId());
+        }
+    }
+
+    private void seedClientReports(JsonNode clientReports) {
+        if (clientReports == null || !clientReports.isArray()) {
+            log.warn("no clientReports found in db.json");
+            return;
+        }
+        log.info("seeding {} clientReports...", clientReports.size());
+        for (var node : clientReports) {
+            var parkingId = parkingIdMap.get(node.get("parkingId").asText());
+            if (parkingId == null) {
+                log.warn("parkingId {} not found, skipping clientReport", node.get("parkingId").asText());
+                continue;
+            }
+            var reservationId = reservationIdMap.get(node.get("reservationId").asText());
+            if (reservationId == null) {
+                log.warn("reservationId {} not found, skipping clientReport", node.get("reservationId").asText());
+                continue;
+            }
+
+            var report = new ClientReport(
+                    extractNumericId(node.get("clientId").asText()),
+                    parkingId,
+                    reservationId,
+                    ReportType.fromDisplayName(node.get("type").asText()),
+                    node.get("date").asText()
+            );
+
+            var status = node.has("status") ? node.get("status").asText("submitted") : "submitted";
+            report.updateStatus(ReportStatus.fromDisplayName(status));
+
+            clientReportRepository.save(report);
         }
     }
 
@@ -324,6 +392,70 @@ public class DbSeeder implements CommandLineRunner {
             entity.setStatus(node.get("status").asText());
 
             receiptRepository.save(entity);
+        }
+    }
+
+    private void seedEmployees(JsonNode employees) {
+        if (employees == null || !employees.isArray()) {
+            log.warn("no employees found in db.json");
+            return;
+        }
+        log.info("seeding {} employees...", employees.size());
+        for (var node : employees) {
+            var parkingId = node.has("parkingId") ? parkingIdMap.get(node.get("parkingId").asText()) : null;
+            if (parkingId == null) {
+                log.warn("parkingId {} not found, skipping employee", node.get("parkingId").asText());
+                continue;
+            }
+
+            var employee = new Employee(
+                    parkingId,
+                    node.get("firstName").asText(),
+                    node.get("lastName").asText(),
+                    EmployeeRole.fromDisplayName(node.get("role").asText()),
+                    node.get("schedule").asText(),
+                    node.get("shiftStart").asText(),
+                    node.get("shiftEnd").asText(),
+                    EmployeeStatus.fromDisplayName(node.get("status").asText())
+            );
+
+            employeeRepository.save(employee);
+        }
+    }
+
+    private void seedOccupancyByHour(JsonNode occupancyByHour) {
+        if (occupancyByHour == null || !occupancyByHour.isArray()) {
+            log.warn("no occupancyByHour found in db.json");
+            return;
+        }
+        log.info("seeding {} occupancyByHour points...", occupancyByHour.size());
+        for (var node : occupancyByHour) {
+            var parkingId = parkingIdMap.get(node.get("parkingId").asText());
+            if (parkingId == null) {
+                log.warn("parkingId {} not found, skipping occupancyByHour point", node.get("parkingId").asText());
+                continue;
+            }
+
+            var point = new OccupancyByHour(parkingId, node.get("hour").asText(), node.get("intensity").asInt());
+            occupancyByHourRepository.save(point);
+        }
+    }
+
+    private void seedWeeklyTrends(JsonNode weeklyTrends) {
+        if (weeklyTrends == null || !weeklyTrends.isArray()) {
+            log.warn("no weeklyTrends found in db.json");
+            return;
+        }
+        log.info("seeding {} weeklyTrends points...", weeklyTrends.size());
+        for (var node : weeklyTrends) {
+            var parkingId = parkingIdMap.get(node.get("parkingId").asText());
+            if (parkingId == null) {
+                log.warn("parkingId {} not found, skipping weeklyTrend point", node.get("parkingId").asText());
+                continue;
+            }
+
+            var point = new WeeklyTrend(parkingId, node.get("day").asText(), node.get("value").asDouble());
+            weeklyTrendRepository.save(point);
         }
     }
 

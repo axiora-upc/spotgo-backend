@@ -4,6 +4,7 @@ import com.axiora.spotgo.parking.domain.model.aggregates.Blueprint;
 import com.axiora.spotgo.parking.domain.model.aggregates.DetectedSpot;
 import com.axiora.spotgo.parking.domain.model.aggregates.Parking;
 import com.axiora.spotgo.parking.domain.model.aggregates.Reservation;
+import com.axiora.spotgo.parking.domain.model.aggregates.ClientReport;
 import com.axiora.spotgo.parking.domain.model.commands.CreateBlueprintCommand;
 import com.axiora.spotgo.parking.domain.model.commands.CreateParkingCommand;
 import com.axiora.spotgo.parking.domain.model.commands.ReserveSpotCommand;
@@ -11,10 +12,13 @@ import com.axiora.spotgo.parking.domain.model.commands.UpdateSpotStatusCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateParkingRatingCommand;
 import com.axiora.spotgo.parking.domain.model.commands.CreateDetectedSpotCommand;
 import com.axiora.spotgo.parking.domain.model.commands.DeleteBlueprintCommand;
+import com.axiora.spotgo.parking.domain.model.commands.CreateClientReportCommand;
+import com.axiora.spotgo.parking.domain.model.commands.UpdateClientReportStatusCommand;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.BlueprintRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.DetectedSpotRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ParkingRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ReservationRepository;
+import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ClientReportRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -26,12 +30,14 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
     private final BlueprintRepository blueprintRepository;
     private final DetectedSpotRepository detectedSpotRepository;
     private final ReservationRepository reservationRepository;
+    private final ClientReportRepository clientReportRepository;
 
-    public ParkingCommandServiceImpl(ParkingRepository parkingRepository, BlueprintRepository blueprintRepository, DetectedSpotRepository detectedSpotRepository, ReservationRepository reservationRepository) {
+    public ParkingCommandServiceImpl(ParkingRepository parkingRepository, BlueprintRepository blueprintRepository, DetectedSpotRepository detectedSpotRepository, ReservationRepository reservationRepository, ClientReportRepository clientReportRepository) {
         this.parkingRepository = parkingRepository;
         this.blueprintRepository = blueprintRepository;
         this.detectedSpotRepository = detectedSpotRepository;
         this.reservationRepository = reservationRepository;
+        this.clientReportRepository = clientReportRepository;
     }
 
     @Override
@@ -99,5 +105,22 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
     @Override
     public void handle(DeleteBlueprintCommand command) {
         blueprintRepository.deleteById(command.blueprintId());
+    }
+
+    @Override
+    public Optional<ClientReport> handle(CreateClientReportCommand command) {
+        var report = new ClientReport(
+                command.clientId(), command.parkingId(), command.reservationId(),
+                command.type(), command.date());
+        return Optional.of(clientReportRepository.save(report));
+    }
+
+    @Override
+    public Optional<ClientReport> handle(UpdateClientReportStatusCommand command) {
+        var reportOpt = clientReportRepository.findById(command.reportId());
+        if (reportOpt.isEmpty()) return Optional.empty();
+        var report = reportOpt.get();
+        report.updateStatus(command.status());
+        return Optional.of(clientReportRepository.save(report));
     }
 }
