@@ -16,16 +16,16 @@ public class Reservation extends AbstractAggregateRoot<Reservation> {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "vehicle_plate", nullable = false)
+    @Column(name = "vehiclePlate", nullable = false)
     private String vehiclePlate;
 
-    @Column(name = "spot_id", nullable = false)
+    @Column(name = "spotId", nullable = false)
     private Long spotId;
 
-    @Column(name = "start_time", nullable = false)
+    @Column(name = "startTime", nullable = false)
     private LocalDateTime startTime;
 
-    @Column(name = "end_time", nullable = false)
+    @Column(name = "endTime", nullable = false)
     private LocalDateTime endTime;
 
     @Enumerated(EnumType.STRING)

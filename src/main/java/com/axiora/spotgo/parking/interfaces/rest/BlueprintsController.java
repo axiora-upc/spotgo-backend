@@ -9,6 +9,7 @@ import com.axiora.spotgo.parking.interfaces.rest.resources.BlueprintResource;
 import com.axiora.spotgo.parking.interfaces.rest.resources.CreateBlueprintResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/blueprints")
+@Tag(name = "Blueprints")
 public class BlueprintsController {
 
     private final ParkingCommandService parkingCommandService;

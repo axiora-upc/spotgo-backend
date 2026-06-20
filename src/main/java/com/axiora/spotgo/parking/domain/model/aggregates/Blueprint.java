@@ -13,10 +13,10 @@ public class Blueprint extends AbstractAggregateRoot<Blueprint> {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "image_url", nullable = false)
+    @Column(name = "imageUrl", nullable = false, columnDefinition = "TEXT")
     private String imageUrl;
 
-    @Column(name = "parking_id", nullable = false)
+    @Column(name = "parkingId", nullable = false)
     private Long parkingId;
 
     public Blueprint() {
