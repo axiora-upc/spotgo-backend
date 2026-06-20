@@ -14,7 +14,7 @@ public final class SubscriptionPersistenceAssembler {
                 entity.getId(),
                 entity.getClientId(),
                 entity.getPlanId(),
-                SubscriptionStatus.valueOf(entity.getStatus()),
+                SubscriptionStatus.valueOf(entity.getStatus().toUpperCase()),
                 entity.getRenewsOn(),
                 entity.getPricePerMonth(),
                 entity.getSessions(),
