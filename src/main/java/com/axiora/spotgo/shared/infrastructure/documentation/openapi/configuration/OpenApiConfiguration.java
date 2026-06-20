@@ -4,6 +4,7 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +24,7 @@ public class OpenApiConfiguration {
     @Bean
     public OpenAPI spotgoOpenApi() {
         return new OpenAPI()
+                .addServersItem(new Server().url("/"))
                 .info(new Info()
                         .title("SpotGo Parking API")
                         .description(this.applicationDescription)
