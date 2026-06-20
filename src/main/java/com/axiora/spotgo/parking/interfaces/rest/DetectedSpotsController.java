@@ -12,6 +12,11 @@ import com.axiora.spotgo.parking.interfaces.rest.resources.DetectedSpotResource;
 import com.axiora.spotgo.parking.interfaces.rest.resources.CreateDetectedSpotResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,7 +25,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/detectedSpots")
-@Tag(name = "DetectedSpots")
+@Tag(name = "DetectedSpots", description = "Endpoints for managing detected parking spots")
 public class DetectedSpotsController {
 
     private final ParkingCommandService parkingCommandService;
@@ -32,6 +37,9 @@ public class DetectedSpotsController {
     }
 
     @GetMapping
+    @Operation(summary = "Get all detected spots", description = "Returns a list of detected parking spots, optionally filtered by parking ID or blueprint ID.")
+    @ApiResponse(responseCode = "200", description = "List of detected spots returned",
+            content = @Content(schema = @Schema(implementation = DetectedSpotResource.class)))
     public ResponseEntity<List<DetectedSpotResource>> getAllDetectedSpots(
             @RequestParam(required = false) Long parkingId,
             @RequestParam(required = false) Long blueprintId) {
@@ -50,6 +58,12 @@ public class DetectedSpotsController {
     }
 
     @GetMapping("/blueprint/{blueprintId}")
+    @Operation(summary = "Get spots by blueprint ID", description = "Returns all detected spots for a specific blueprint.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Spots returned",
+                    content = @Content(schema = @Schema(implementation = DetectedSpotResource.class))),
+            @ApiResponse(responseCode = "404", description = "Blueprint not found")
+    })
     public ResponseEntity<List<DetectedSpotResource>> getSpotsByBlueprintId(@PathVariable Long blueprintId) {
         var spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
         var resources = spots.stream()
@@ -59,6 +73,11 @@ public class DetectedSpotsController {
     }
 
     @PatchMapping("/{spotId}/status")
+    @Operation(summary = "Update spot status", description = "Updates the status of a detected parking spot.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Status updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid status value")
+    })
     public ResponseEntity<Void> updateSpotStatus(@PathVariable Long spotId, @RequestParam String status) {
         var spotStatus = SpotStatus.fromDisplayName(status);
         var command = new UpdateSpotStatusCommand(spotId, spotStatus);
@@ -70,6 +89,12 @@ public class DetectedSpotsController {
     }
 
     @PostMapping
+    @Operation(summary = "Create a detected spot", description = "Creates a new detected parking spot on a blueprint.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Detected spot created successfully",
+                    content = @Content(schema = @Schema(implementation = DetectedSpotResource.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid input")
+    })
     public ResponseEntity<DetectedSpotResource> createDetectedSpot(@RequestBody CreateDetectedSpotResource resource) {
         var status = SpotStatus.fromDisplayName(resource.status());
         var command = new com.axiora.spotgo.parking.domain.model.commands.CreateDetectedSpotCommand(

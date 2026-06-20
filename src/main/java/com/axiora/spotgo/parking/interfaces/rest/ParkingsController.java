@@ -10,6 +10,11 @@ import com.axiora.spotgo.parking.interfaces.rest.resources.CreateParkingResource
 import com.axiora.spotgo.parking.interfaces.rest.resources.ParkingResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,7 +23,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/parkings")
-@Tag(name = "Parkings")
+@Tag(name = "Parkings", description = "Endpoints for managing parking facilities")
 public class ParkingsController {
 
     private final ParkingCommandService parkingCommandService;
@@ -30,6 +35,12 @@ public class ParkingsController {
     }
 
     @PostMapping
+    @Operation(summary = "Create a parking", description = "Creates a new parking facility.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Parking created successfully",
+                    content = @Content(schema = @Schema(implementation = ParkingResource.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid input")
+    })
     public ResponseEntity<ParkingResource> createParking(@RequestBody CreateParkingResource resource) {
         var command = new CreateParkingCommand(
                 resource.adminId(), resource.name(), resource.address(), resource.city(),
@@ -47,6 +58,9 @@ public class ParkingsController {
     }
 
     @GetMapping
+    @Operation(summary = "Get all parkings", description = "Returns a list of all parking facilities.")
+    @ApiResponse(responseCode = "200", description = "List of parkings returned",
+            content = @Content(schema = @Schema(implementation = ParkingResource.class)))
     public ResponseEntity<List<ParkingResource>> getAllParkings() {
         var parkings = parkingQueryService.handle(new GetAllParkingsQuery());
         var resources = parkings.stream()
@@ -56,6 +70,13 @@ public class ParkingsController {
     }
 
     @PatchMapping("/{parkingId}")
+    @Operation(summary = "Update parking rating", description = "Updates the rating of a parking facility.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Rating updated successfully",
+                    content = @Content(schema = @Schema(implementation = ParkingResource.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid input"),
+            @ApiResponse(responseCode = "404", description = "Parking not found")
+    })
     public ResponseEntity<ParkingResource> updateParkingRating(@PathVariable Long parkingId, @RequestBody java.util.Map<String, Object> body) {
         if (!body.containsKey("rating")) {
             return ResponseEntity.badRequest().build();

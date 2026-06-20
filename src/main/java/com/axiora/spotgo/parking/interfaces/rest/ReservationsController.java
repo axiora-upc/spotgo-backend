@@ -10,6 +10,11 @@ import com.axiora.spotgo.parking.interfaces.rest.resources.CreateReservationReso
 import com.axiora.spotgo.parking.interfaces.rest.resources.ReservationResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,7 +23,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/reservations")
-@Tag(name = "Reservations")
+@Tag(name = "Reservations", description = "Endpoints for managing parking spot reservations")
 public class ReservationsController {
 
     private final ParkingCommandService parkingCommandService;
@@ -30,6 +35,12 @@ public class ReservationsController {
     }
 
     @PostMapping
+    @Operation(summary = "Reserve a spot", description = "Creates a new parking spot reservation.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Reservation created successfully",
+                    content = @Content(schema = @Schema(implementation = ReservationResource.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid input")
+    })
     public ResponseEntity<ReservationResource> reserveSpot(@RequestBody CreateReservationResource resource) {
         var command = new ReserveSpotCommand(
                 resource.clientId(),
@@ -52,6 +63,9 @@ public class ReservationsController {
     }
 
     @GetMapping
+    @Operation(summary = "Get all reservations", description = "Returns a list of reservations, optionally filtered by parking ID.")
+    @ApiResponse(responseCode = "200", description = "List of reservations returned",
+            content = @Content(schema = @Schema(implementation = ReservationResource.class)))
     public ResponseEntity<List<ReservationResource>> getAllReservations(@RequestParam(required = false) Long parkingId) {
         List<Reservation> reservations;
         if (parkingId != null) {

@@ -12,7 +12,7 @@
     <artifactId>spotgo</artifactId>
     <version>1.0.0</version>
     <name>SpotGo Backend</name>
-    <description>SpotGo Backend by Axiora</description>
+    <description>REST API for managing parking facilities, real-time spot detection, reservations, and billing in the SpotGo smart parking platform by Axiora.</description>
     <url/>
     <licenses>
         <license/>
