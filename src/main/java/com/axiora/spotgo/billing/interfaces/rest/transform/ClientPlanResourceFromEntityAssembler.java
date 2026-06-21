@@ -8,7 +8,7 @@ public class ClientPlanResourceFromEntityAssembler {
     public static ClientPlanResource toResourceFromEntity(ClientPlan entity) {
         return new ClientPlanResource(
                 entity.getId(),
-                entity.getType().name(),
+                entity.getType().name().toLowerCase(),
                 entity.getName(),
                 entity.getMonthlyPrice(),
                 entity.getDescription(),
