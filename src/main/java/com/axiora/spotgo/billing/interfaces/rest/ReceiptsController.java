@@ -91,7 +91,7 @@ public class ReceiptsController {
     public ResponseEntity<?> getReceiptById(
             @PathVariable
             @Parameter(description = "Receipt unique identifier", example = "1", required = true)
-            Long receiptId
+            String receiptId
     ) {
         var query = new GetReceiptByIdQuery(receiptId);
         var receipt = receiptQueryService.handle(query);
@@ -111,7 +111,7 @@ public class ReceiptsController {
     public ResponseEntity<?> deleteReceipt(
             @PathVariable
             @Parameter(description = "Receipt unique identifier", example = "1", required = true)
-            Long receiptId
+            String receiptId
     ) {
         var result = receiptCommandService.handle(new DeleteReceiptCommand(receiptId));
         if (result.isFailure()) {

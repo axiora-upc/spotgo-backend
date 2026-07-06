@@ -91,7 +91,7 @@ public class SubscriptionsController {
     public ResponseEntity<?> getSubscriptionById(
             @PathVariable
             @Parameter(description = "Subscription unique identifier", example = "1", required = true)
-            Long subscriptionId
+            String subscriptionId
     ) {
         var query = new GetSubscriptionByIdQuery(subscriptionId);
         var subscription = subscriptionQueryService.handle(query);
@@ -114,7 +114,7 @@ public class SubscriptionsController {
     public ResponseEntity<?> updateSubscription(
             @PathVariable
             @Parameter(description = "Subscription unique identifier", example = "1", required = true)
-            Long subscriptionId,
+            String subscriptionId,
             @Valid @RequestBody UpdateSubscriptionResource resource
     ) {
         var command = UpdateSubscriptionCommandFromResourceAssembler.toCommandFromResource(subscriptionId, resource);
@@ -137,7 +137,7 @@ public class SubscriptionsController {
     public ResponseEntity<?> patchSubscriptionSavings(
             @PathVariable
             @Parameter(description = "Subscription unique identifier", example = "1", required = true)
-            Long subscriptionId,
+            String subscriptionId,
             @Valid @RequestBody PatchSubscriptionSavingsResource resource
     ) {
         var command = new PatchSubscriptionSavingsCommand(

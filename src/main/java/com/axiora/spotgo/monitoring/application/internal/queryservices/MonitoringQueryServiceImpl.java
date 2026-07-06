@@ -12,10 +12,12 @@ import com.axiora.spotgo.monitoring.infrastructure.persistence.jpa.repositories.
 import com.axiora.spotgo.monitoring.infrastructure.persistence.jpa.repositories.OccupancyByHourRepository;
 import com.axiora.spotgo.monitoring.infrastructure.persistence.jpa.repositories.WeeklyTrendRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class MonitoringQueryServiceImpl implements MonitoringQueryService {
 
     private final EmployeeRepository employeeRepository;

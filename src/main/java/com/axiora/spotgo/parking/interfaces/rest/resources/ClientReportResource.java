@@ -4,16 +4,19 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public record ClientReportResource(
         @Schema(description = "Unique identifier of the report", example = "1")
-        Long id,
+        String id,
+
+        @Schema(description = "Sequential report code shown in the frontend", example = "RPT-00001")
+        String code,
 
         @Schema(description = "Client identifier", example = "3")
-        Long clientId,
+        String clientId,
 
         @Schema(description = "Parking identifier", example = "1")
-        Long parkingId,
+        String parkingId,
 
         @Schema(description = "Reservation this report refers to", example = "5")
-        Long reservationId,
+        String reservationId,
 
         @Schema(description = "Report type", example = "safety-concern",
                 allowableValues = {"safety-concern", "maintenance-issue", "billing-dispute", "other"})

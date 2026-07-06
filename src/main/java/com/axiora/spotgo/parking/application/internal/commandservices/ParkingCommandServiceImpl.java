@@ -10,20 +10,25 @@ import com.axiora.spotgo.parking.domain.model.commands.CreateParkingCommand;
 import com.axiora.spotgo.parking.domain.model.commands.ReserveSpotCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateSpotStatusCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateParkingRatingCommand;
+import com.axiora.spotgo.parking.domain.model.commands.UpdateParkingCommand;
 import com.axiora.spotgo.parking.domain.model.commands.CreateDetectedSpotCommand;
 import com.axiora.spotgo.parking.domain.model.commands.DeleteBlueprintCommand;
 import com.axiora.spotgo.parking.domain.model.commands.CreateClientReportCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateClientReportStatusCommand;
+import com.axiora.spotgo.parking.domain.model.commands.UpdateReservationCommand;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.BlueprintRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.DetectedSpotRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ParkingRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ReservationRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ClientReportRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Optional;
 
 @Service
+@Transactional
 public class ParkingCommandServiceImpl implements ParkingCommandService {
 
     private final ParkingRepository parkingRepository;
@@ -109,9 +114,13 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
 
     @Override
     public Optional<ClientReport> handle(CreateClientReportCommand command) {
+        var nextCode = clientReportRepository.findTopByOrderByCodeDesc()
+                .map(ClientReport::getCode)
+                .map(this::incrementReportCode)
+                .orElse("RPT-00001");
         var report = new ClientReport(
                 command.clientId(), command.parkingId(), command.reservationId(),
-                command.type(), command.date());
+                nextCode, command.type(), parseDateTime(command.date()));
         return Optional.of(clientReportRepository.save(report));
     }
 
@@ -122,5 +131,37 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
         var report = reportOpt.get();
         report.updateStatus(command.status());
         return Optional.of(clientReportRepository.save(report));
+    }
+
+    @Override
+    public Optional<Parking> handle(UpdateParkingCommand command) {
+        var parkingOpt = parkingRepository.findById(command.parkingId());
+        if (parkingOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        var parking = parkingOpt.get();
+        parking.updateStats(command.totalSpaces(), command.availableSpaces(), command.totalFloors(), command.rating());
+        return Optional.of(parkingRepository.save(parking));
+    }
+
+    @Override
+    public Optional<Reservation> handle(UpdateReservationCommand command) {
+        var reservationOpt = reservationRepository.findById(command.reservationId());
+        if (reservationOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        var reservation = reservationOpt.get();
+        reservation.updateDetails(command.endDate(), command.amount(), command.baseAmount(), command.rating(), command.status());
+        return Optional.of(reservationRepository.save(reservation));
+    }
+
+    private String incrementReportCode(String currentCode) {
+        var numericPortion = currentCode.replace("RPT-", "");
+        var next = Integer.parseInt(numericPortion) + 1;
+        return "RPT-%05d".formatted(next);
+    }
+
+    private Instant parseDateTime(String value) {
+        return Instant.parse(value);
     }
 }

@@ -8,10 +8,10 @@ import jakarta.persistence.*;
 public class SubscriptionPersistenceEntity extends AuditableAbstractPersistenceEntity {
 
     @Column(nullable = false)
-    private Long clientId;
+    private String clientId;
 
     @Column(nullable = false)
-    private Long planId;
+    private String planId;
 
     @Column(nullable = false)
     private String status;
@@ -46,11 +46,11 @@ public class SubscriptionPersistenceEntity extends AuditableAbstractPersistenceE
     public SubscriptionPersistenceEntity() {
     }
 
-    public Long getClientId() { return clientId; }
-    public void setClientId(Long clientId) { this.clientId = clientId; }
+    public String getClientId() { return clientId; }
+    public void setClientId(String clientId) { this.clientId = clientId; }
 
-    public Long getPlanId() { return planId; }
-    public void setPlanId(Long planId) { this.planId = planId; }
+    public String getPlanId() { return planId; }
+    public void setPlanId(String planId) { this.planId = planId; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

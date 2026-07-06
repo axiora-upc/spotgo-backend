@@ -21,7 +21,7 @@ public record ApplicationError(
     }
 
     public static ApplicationError businessRuleViolation(String rule, String reason) {
-        return new ApplicationError("BUSINESS_RULE_VALIDATION",
+        return new ApplicationError("BUSINESS_RULE_VIOLATION",
                 "Business rule violation: %s".formatted(rule),
                 reason);
     }

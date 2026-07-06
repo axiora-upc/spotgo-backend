@@ -7,9 +7,7 @@ import java.util.Optional;
 
 public interface SubscriptionRepository {
 
-    Optional<Subscription> findById(Long id);
-
-    Optional<Subscription> findByClientId(Long clientId);
+    Optional<Subscription> findById(String id);
 
     List<Subscription> findAll();
 

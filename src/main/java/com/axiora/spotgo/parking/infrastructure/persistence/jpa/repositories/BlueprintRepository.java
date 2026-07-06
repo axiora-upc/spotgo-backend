@@ -7,6 +7,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface BlueprintRepository extends JpaRepository<Blueprint, Long> {
-    List<Blueprint> findByParkingId(Long parkingId);
+public interface BlueprintRepository extends JpaRepository<Blueprint, String> {
+    List<Blueprint> findByParkingId(String parkingId);
 }

@@ -6,10 +6,12 @@ import com.axiora.spotgo.monitoring.domain.model.commands.DeleteEmployeeCommand;
 import com.axiora.spotgo.monitoring.domain.model.commands.UpdateEmployeeCommand;
 import com.axiora.spotgo.monitoring.infrastructure.persistence.jpa.repositories.EmployeeRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
 @Service
+@Transactional
 public class MonitoringCommandServiceImpl implements MonitoringCommandService {
 
     private final EmployeeRepository employeeRepository;

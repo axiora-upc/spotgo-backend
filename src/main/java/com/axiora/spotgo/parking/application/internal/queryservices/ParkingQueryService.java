@@ -6,6 +6,7 @@ import com.axiora.spotgo.parking.domain.model.queries.GetParkingByIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetSpotsByBlueprintIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetAllReservationsQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetReservationsByParkingIdQuery;
+import com.axiora.spotgo.parking.domain.model.queries.GetReservationsByClientIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetDetectedSpotsByParkingIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetAllDetectedSpotsQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetAllBlueprintsQuery;
@@ -26,6 +27,7 @@ public interface ParkingQueryService {
     List<DetectedSpot> handle(GetSpotsByBlueprintIdQuery query);
     List<Reservation> handle(GetAllReservationsQuery query);
     List<Reservation> handle(GetReservationsByParkingIdQuery query);
+    List<Reservation> handle(GetReservationsByClientIdQuery query);
     List<DetectedSpot> handle(GetDetectedSpotsByParkingIdQuery query);
     List<DetectedSpot> handle(GetAllDetectedSpotsQuery query);
     List<Blueprint> handle(GetAllBlueprintsQuery query);

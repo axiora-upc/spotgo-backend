@@ -4,7 +4,7 @@ import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeRole;
 import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeStatus;
 
 public record CreateEmployeeCommand(
-        Long parkingId,
+        String parkingId,
         String firstName,
         String lastName,
         EmployeeRole role,

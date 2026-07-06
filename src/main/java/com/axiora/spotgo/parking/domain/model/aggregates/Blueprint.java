@@ -2,22 +2,18 @@ package com.axiora.spotgo.parking.domain.model.aggregates;
 
 import jakarta.persistence.*;
 import lombok.Getter;
-import org.springframework.data.domain.AbstractAggregateRoot;
+import com.axiora.spotgo.shared.infrastructure.persistence.jpa.entities.UuidIdentifiedAggregateRoot;
 
 @Entity
 @Table(name = "blueprints")
 @Getter
-public class Blueprint extends AbstractAggregateRoot<Blueprint> {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Blueprint extends UuidIdentifiedAggregateRoot<Blueprint> {
 
     @Column(name = "adminId")
-    private Long adminId;
+    private String adminId;
 
     @Column(name = "parkingId", nullable = false)
-    private Long parkingId;
+    private String parkingId;
 
     @Column(name = "name")
     private String name;
@@ -28,7 +24,7 @@ public class Blueprint extends AbstractAggregateRoot<Blueprint> {
     public Blueprint() {
     }
 
-    public Blueprint(Long adminId, Long parkingId, String name, String dataUrl) {
+    public Blueprint(String adminId, String parkingId, String name, String dataUrl) {
         this.adminId = adminId;
         this.parkingId = parkingId;
         this.name = name;

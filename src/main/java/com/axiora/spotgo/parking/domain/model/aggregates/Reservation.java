@@ -1,26 +1,22 @@
 package com.axiora.spotgo.parking.domain.model.aggregates;
 
 import com.axiora.spotgo.parking.domain.model.valueobjects.ReservationStatus;
+import com.axiora.spotgo.shared.infrastructure.persistence.jpa.entities.UuidIdentifiedAggregateRoot;
 import jakarta.persistence.*;
 import lombok.Getter;
-import org.springframework.data.domain.AbstractAggregateRoot;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "reservations")
 @Getter
-public class Reservation extends AbstractAggregateRoot<Reservation> {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Reservation extends UuidIdentifiedAggregateRoot<Reservation> {
 
     @Column(name = "clientId")
-    private Long clientId;
+    private String clientId;
 
     @Column(name = "parkingId")
-    private Long parkingId;
+    private String parkingId;
 
     @Column(name = "code")
     private String code;
@@ -50,7 +46,7 @@ public class Reservation extends AbstractAggregateRoot<Reservation> {
     public Reservation() {
     }
 
-    public Reservation(Long clientId, Long parkingId, String code, String spot,
+    public Reservation(String clientId, String parkingId, String code, String spot,
                        LocalDateTime startDate, LocalDateTime endDate,
                        Double amount, Double baseAmount, Double rating) {
         this.clientId = clientId;
@@ -67,5 +63,13 @@ public class Reservation extends AbstractAggregateRoot<Reservation> {
 
     public void updateStatus(ReservationStatus newStatus) {
         this.status = newStatus;
+    }
+
+    public void updateDetails(LocalDateTime endDate, Double amount, Double baseAmount, Double rating, ReservationStatus status) {
+        if (endDate != null) this.endDate = endDate;
+        if (amount != null) this.amount = amount;
+        if (baseAmount != null) this.baseAmount = baseAmount;
+        if (rating != null) this.rating = rating;
+        if (status != null) this.status = status;
     }
 }

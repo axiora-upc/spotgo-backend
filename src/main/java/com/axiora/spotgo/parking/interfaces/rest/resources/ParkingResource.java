@@ -4,10 +4,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public record ParkingResource(
         @Schema(description = "Unique identifier of the parking", example = "1")
-        Long id,
+        String id,
 
         @Schema(description = "Administrator identifier", example = "1")
-        Long adminId,
+        String adminId,
 
         @Schema(description = "Parking name", example = "Parking Central Lima")
         String name,

@@ -1,27 +1,23 @@
 package com.axiora.spotgo.parking.domain.model.aggregates;
 
 import com.axiora.spotgo.parking.domain.model.valueobjects.SpotStatus;
+import com.axiora.spotgo.shared.infrastructure.persistence.jpa.entities.UuidIdentifiedAggregateRoot;
 import jakarta.persistence.*;
 import lombok.Getter;
-import org.springframework.data.domain.AbstractAggregateRoot;
 
 @Entity
 @Table(name = "detectedSpots")
 @Getter
-public class DetectedSpot extends AbstractAggregateRoot<DetectedSpot> {
+public class DetectedSpot extends UuidIdentifiedAggregateRoot<DetectedSpot> {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(name = "localId")
-    private Integer localId;
+    @Column(name = "code")
+    private Integer code;
 
     @Column(name = "blueprintId", nullable = false)
-    private Long blueprintId;
+    private String blueprintId;
 
     @Column(name = "parkingId")
-    private Long parkingId;
+    private String parkingId;
 
     @Column(name = "rowNum")
     private Integer row;
@@ -48,9 +44,9 @@ public class DetectedSpot extends AbstractAggregateRoot<DetectedSpot> {
     public DetectedSpot() {
     }
 
-    public DetectedSpot(Integer localId, Long blueprintId, Long parkingId, Integer row, Integer col,
-                        Double xPct, Double yPct, Double wPct, Double hPct, SpotStatus status) {
-        this.localId = localId;
+    public DetectedSpot(Integer code, String blueprintId, String parkingId, Integer row, Integer col,
+                         Double xPct, Double yPct, Double wPct, Double hPct, SpotStatus status) {
+        this.code = code;
         this.blueprintId = blueprintId;
         this.parkingId = parkingId;
         this.row = row;

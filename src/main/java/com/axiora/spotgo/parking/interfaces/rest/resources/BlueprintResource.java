@@ -4,13 +4,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public record BlueprintResource(
         @Schema(description = "Unique identifier of the blueprint", example = "1")
-        Long id,
+        String id,
 
         @Schema(description = "Administrator identifier", example = "1")
-        Long adminId,
+        String adminId,
 
         @Schema(description = "Parking identifier", example = "1")
-        Long parkingId,
+        String parkingId,
 
         @Schema(description = "Blueprint name", example = "Croquis Nivel 1")
         String name,

@@ -6,12 +6,12 @@ import com.axiora.spotgo.billing.interfaces.rest.resources.UpdateSubscriptionRes
 
 public class UpdateSubscriptionCommandFromResourceAssembler {
 
-    public static UpdateSubscriptionCommand toCommandFromResource(Long subscriptionId,
+    public static UpdateSubscriptionCommand toCommandFromResource(String subscriptionId,
                                                                    UpdateSubscriptionResource resource) {
         return new UpdateSubscriptionCommand(
                 subscriptionId,
                 resource.planId(),
-                SubscriptionStatus.valueOf(resource.status().toUpperCase()),
+                SubscriptionStatus.fromValue(resource.status()),
                 resource.renewsOn(),
                 resource.pricePerMonth(),
                 resource.sessions(),

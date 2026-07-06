@@ -3,7 +3,6 @@ package com.axiora.spotgo.billing.domain.model.aggregates;
 import com.axiora.spotgo.billing.domain.model.commands.CreateSubscriptionCommand;
 import com.axiora.spotgo.billing.domain.model.commands.PatchSubscriptionSavingsCommand;
 import com.axiora.spotgo.billing.domain.model.commands.UpdateSubscriptionCommand;
-import com.axiora.spotgo.billing.domain.model.events.SubscriptionCreatedEvent;
 import com.axiora.spotgo.billing.domain.model.valueobjects.SubscriptionStatus;
 import com.axiora.spotgo.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 import lombok.Getter;
@@ -13,14 +12,14 @@ public class Subscription extends AbstractDomainAggregateRoot<Subscription> {
 
     @Getter
     @Setter
-    private Long id;
+    private String id;
 
     @Getter
-    private Long clientId;
+    private String clientId;
 
     @Getter
     @Setter
-    private Long planId;
+    private String planId;
 
     @Getter
     @Setter
@@ -61,7 +60,7 @@ public class Subscription extends AbstractDomainAggregateRoot<Subscription> {
     @Setter
     private String paymentMethodExpiry;
 
-    public Subscription(Long id, Long clientId, Long planId, SubscriptionStatus status,
+    public Subscription(String id, String clientId, String planId, SubscriptionStatus status,
                         String renewsOn, Double pricePerMonth, Integer sessions,
                         Double savedThisMonth, String savingsMonth, String memberSince,
                         Boolean autoRenewal, String paymentMethodLastFour, String paymentMethodExpiry) {
@@ -80,7 +79,7 @@ public class Subscription extends AbstractDomainAggregateRoot<Subscription> {
         this.paymentMethodExpiry = paymentMethodExpiry;
     }
 
-    public Subscription(Long clientId, Long planId, SubscriptionStatus status,
+    public Subscription(String clientId, String planId, SubscriptionStatus status,
                         String renewsOn, Double pricePerMonth, Integer sessions,
                         Double savedThisMonth, String savingsMonth, String memberSince,
                         Boolean autoRenewal, String paymentMethodLastFour, String paymentMethodExpiry) {
@@ -111,9 +110,5 @@ public class Subscription extends AbstractDomainAggregateRoot<Subscription> {
     public void patchSavings(PatchSubscriptionSavingsCommand command) {
         this.savedThisMonth = command.savedThisMonth();
         this.savingsMonth = command.savingsMonth();
-    }
-
-    public void onCreated() {
-        registerDomainEvent(SubscriptionCreatedEvent.from(this));
     }
 }

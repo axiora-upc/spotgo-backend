@@ -5,9 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
-public interface ReceiptPersistenceRepository extends JpaRepository<ReceiptPersistenceEntity, Long> {
-
-    List<ReceiptPersistenceEntity> findAllByClientId(Long clientId);
-
+public interface ReceiptPersistenceRepository extends JpaRepository<ReceiptPersistenceEntity, String> {
     List<ReceiptPersistenceEntity> findAllByBookingCode(String bookingCode);
 }

@@ -1,3 +1,3 @@
 package com.axiora.spotgo.billing.domain.model.commands;
 
-public record DeleteReceiptCommand(Long receiptId) {}
+public record DeleteReceiptCommand(String receiptId) {}

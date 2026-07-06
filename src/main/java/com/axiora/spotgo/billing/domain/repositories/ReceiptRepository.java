@@ -7,15 +7,13 @@ import java.util.Optional;
 
 public interface ReceiptRepository {
 
-    Optional<Receipt> findById(Long id);
+    Optional<Receipt> findById(String id);
 
     List<Receipt> findAll();
-
-    List<Receipt> findAllByClientId(Long clientId);
 
     List<Receipt> findAllByBookingCode(String bookingCode);
 
     Receipt save(Receipt receipt);
 
-    void deleteById(Long id);
+    void deleteById(String id);
 }

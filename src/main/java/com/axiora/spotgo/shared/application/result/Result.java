@@ -62,10 +62,4 @@ public sealed interface Result<T, E> {
         };
     }
 
-    default Result<T, E> recover(Function<E, Result<T, E>> f) {
-        return  switch (this) {
-            case Success<T, E> s -> this;
-            case Failure<T, E> failure-> f.apply(failure.error);
-        };
-    }
 }

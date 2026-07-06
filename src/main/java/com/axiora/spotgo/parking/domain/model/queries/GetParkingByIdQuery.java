@@ -1,4 +1,4 @@
 package com.axiora.spotgo.parking.domain.model.queries;
 
-public record GetParkingByIdQuery(Long parkingId) {
+public record GetParkingByIdQuery(String parkingId) {
 }

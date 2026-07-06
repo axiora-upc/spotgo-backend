@@ -1,4 +1,4 @@
 package com.axiora.spotgo.billing.domain.model.queries;
 
-public record GetClientPlanByIdQuery(Long clientPlanId) {
+public record GetClientPlanByIdQuery(String clientPlanId) {
 }

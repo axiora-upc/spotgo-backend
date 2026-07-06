@@ -4,10 +4,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public record EmployeeResource(
         @Schema(description = "Unique identifier of the employee", example = "1")
-        Long id,
+        String id,
 
         @Schema(description = "Parking identifier", example = "1")
-        Long parkingId,
+        String parkingId,
 
         @Schema(description = "Employee first name", example = "Piero")
         String firstName,

@@ -1,7 +1,7 @@
 package com.axiora.spotgo.billing.domain.model.commands;
 
 public record CreateReceiptCommand(
-        Long clientId,
+        String clientId,
         String invoiceNumber,
         String locationName,
         String date,

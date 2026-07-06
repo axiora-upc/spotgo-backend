@@ -62,7 +62,7 @@ public class ClientPlansController {
     public ResponseEntity<?> getClientPlanById(
             @PathVariable
             @Parameter(description = "Client plan unique identifier", example = "1", required = true)
-            Long clientPlanId
+            String clientPlanId
     ) {
         var query = new GetClientPlanByIdQuery(clientPlanId);
         var plan = clientPlanQueryService.handle(query);

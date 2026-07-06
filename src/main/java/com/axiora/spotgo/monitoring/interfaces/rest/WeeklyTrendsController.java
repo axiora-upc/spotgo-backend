@@ -14,7 +14,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/weeklyTrends")
@@ -31,14 +30,14 @@ public class WeeklyTrendsController {
     @Operation(summary = "Get weekly trends", description = "Returns weekly trend points, optionally filtered by parking ID.")
     @ApiResponse(responseCode = "200", description = "List of weekly trend points returned",
             content = @Content(schema = @Schema(implementation = WeeklyTrendResource.class)))
-    public ResponseEntity<List<WeeklyTrendResource>> getWeeklyTrends(@RequestParam(required = false) Long parkingId) {
+    public ResponseEntity<List<WeeklyTrendResource>> getWeeklyTrends(@RequestParam(required = false) String parkingId) {
         List<WeeklyTrend> points;
         if (parkingId != null) {
             points = monitoringQueryService.handle(new GetWeeklyTrendsByParkingIdQuery(parkingId));
         } else {
             points = monitoringQueryService.handle(new GetAllWeeklyTrendsQuery());
         }
-        var resources = points.stream().map(this::toResource).collect(Collectors.toList());
+        var resources = points.stream().map(this::toResource).toList();
         return ResponseEntity.ok(resources);
     }
 

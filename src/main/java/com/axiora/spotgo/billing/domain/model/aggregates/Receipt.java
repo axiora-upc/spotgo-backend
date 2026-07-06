@@ -1,7 +1,6 @@
 package com.axiora.spotgo.billing.domain.model.aggregates;
 
 import com.axiora.spotgo.billing.domain.model.commands.CreateReceiptCommand;
-import com.axiora.spotgo.billing.domain.model.events.ReceiptCreatedEvent;
 import com.axiora.spotgo.billing.domain.model.valueobjects.ReceiptStatus;
 import com.axiora.spotgo.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 import lombok.Getter;
@@ -11,10 +10,10 @@ public class Receipt extends AbstractDomainAggregateRoot<Receipt> {
 
     @Getter
     @Setter
-    private Long id;
+    private String id;
 
     @Getter
-    private Long clientId;
+    private String clientId;
 
     @Getter
     private String invoiceNumber;
@@ -43,7 +42,7 @@ public class Receipt extends AbstractDomainAggregateRoot<Receipt> {
     @Getter
     private ReceiptStatus status;
 
-    public Receipt(Long id, Long clientId, String invoiceNumber, String locationName,
+    public Receipt(String id, String clientId, String invoiceNumber, String locationName,
                    String date, Integer durationHours, Integer durationMinutes,
                    String paymentMethod, String bookingCode, Double amount, ReceiptStatus status) {
         this.id = id;
@@ -59,7 +58,7 @@ public class Receipt extends AbstractDomainAggregateRoot<Receipt> {
         this.status = status;
     }
 
-    public Receipt(Long clientId, String invoiceNumber, String locationName,
+    public Receipt(String clientId, String invoiceNumber, String locationName,
                    String date, Integer durationHours, Integer durationMinutes,
                    String paymentMethod, String bookingCode, Double amount, ReceiptStatus status) {
         this(null, clientId, invoiceNumber, locationName, date, durationHours,
@@ -71,9 +70,5 @@ public class Receipt extends AbstractDomainAggregateRoot<Receipt> {
                 command.date(), command.durationHours(), command.durationMinutes(),
                 command.paymentMethod(), command.bookingCode(), command.amount(),
                 ReceiptStatus.PENDING);
-    }
-
-    public void onCreated() {
-        registerDomainEvent(ReceiptCreatedEvent.from(this));
     }
 }

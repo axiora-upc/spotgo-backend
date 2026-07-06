@@ -11,6 +11,7 @@ import com.axiora.spotgo.parking.domain.model.queries.GetParkingByIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetSpotsByBlueprintIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetAllReservationsQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetReservationsByParkingIdQuery;
+import com.axiora.spotgo.parking.domain.model.queries.GetReservationsByClientIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetDetectedSpotsByParkingIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetAllDetectedSpotsQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetAllBlueprintsQuery;
@@ -21,11 +22,13 @@ import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.Par
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ReservationRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ClientReportRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
 @Service
+@Transactional(readOnly = true)
 public class ParkingQueryServiceImpl implements ParkingQueryService {
 
     private final ParkingRepository parkingRepository;
@@ -70,6 +73,11 @@ public class ParkingQueryServiceImpl implements ParkingQueryService {
     @Override
     public List<Reservation> handle(GetReservationsByParkingIdQuery query) {
         return reservationRepository.findByParkingId(query.parkingId());
+    }
+
+    @Override
+    public List<Reservation> handle(GetReservationsByClientIdQuery query) {
+        return reservationRepository.findByClientId(query.clientId());
     }
 
     @Override

@@ -6,7 +6,7 @@ import java.util.List;
 
 public record ClientPlanResource(
         @Schema(description = "Unique identifier of the plan", example = "1")
-        Long id,
+        String id,
 
         @Schema(description = "Plan type", example = "MONTHLY")
         String type,

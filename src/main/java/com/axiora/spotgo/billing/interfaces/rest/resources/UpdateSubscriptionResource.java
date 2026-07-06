@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 public record UpdateSubscriptionResource(
         @NotNull(message = "{validation.not-null}")
         @Schema(description = "Plan identifier", example = "2")
-        Long planId,
+        String planId,
 
         @NotBlank(message = "{validation.not-blank}")
         @Schema(description = "Subscription status: ACTIVE, INACTIVE or CANCELLED", example = "ACTIVE")

@@ -7,7 +7,7 @@ import java.util.Optional;
 
 public interface ClientPlanRepository {
 
-    Optional<ClientPlan> findById(Long id);
+    Optional<ClientPlan> findById(String id);
 
     List<ClientPlan> findAll();
 

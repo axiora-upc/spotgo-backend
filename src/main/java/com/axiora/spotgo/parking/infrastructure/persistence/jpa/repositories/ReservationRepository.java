@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface ReservationRepository extends JpaRepository<Reservation, Long> {
-    List<Reservation> findByCode(String code);
-    List<Reservation> findByParkingId(Long parkingId);
+public interface ReservationRepository extends JpaRepository<Reservation, String> {
+    List<Reservation> findByParkingId(String parkingId);
+    List<Reservation> findByClientId(String clientId);
 }

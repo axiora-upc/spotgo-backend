@@ -1,5 +1,8 @@
 package com.axiora.spotgo.shared.infrastructure.persistence.jpa.seeder;
 
+import com.axiora.spotgo.iam.domain.model.aggregates.UserAccount;
+import com.axiora.spotgo.iam.domain.model.valueobjects.UserRole;
+import com.axiora.spotgo.iam.infrastructure.persistence.jpa.repositories.UserAccountRepository;
 import com.axiora.spotgo.parking.domain.model.aggregates.Blueprint;
 import com.axiora.spotgo.parking.domain.model.aggregates.DetectedSpot;
 import com.axiora.spotgo.parking.domain.model.aggregates.Parking;
@@ -28,6 +31,10 @@ import com.axiora.spotgo.billing.infrastructure.persistence.jpa.entities.Receipt
 import com.axiora.spotgo.billing.infrastructure.persistence.jpa.repositories.ClientPlanPersistenceRepository;
 import com.axiora.spotgo.billing.infrastructure.persistence.jpa.repositories.SubscriptionPersistenceRepository;
 import com.axiora.spotgo.billing.infrastructure.persistence.jpa.repositories.ReceiptPersistenceRepository;
+import com.axiora.spotgo.profiles.domain.model.aggregates.Favorite;
+import com.axiora.spotgo.profiles.domain.model.aggregates.Vehicle;
+import com.axiora.spotgo.profiles.infrastructure.persistence.jpa.repositories.FavoriteRepository;
+import com.axiora.spotgo.profiles.infrastructure.persistence.jpa.repositories.VehicleRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -35,13 +42,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 
 @Component
 public class DbSeeder implements CommandLineRunner {
@@ -59,6 +66,10 @@ public class DbSeeder implements CommandLineRunner {
     private final EmployeeRepository employeeRepository;
     private final OccupancyByHourRepository occupancyByHourRepository;
     private final WeeklyTrendRepository weeklyTrendRepository;
+    private final UserAccountRepository userAccountRepository;
+    private final FavoriteRepository favoriteRepository;
+    private final VehicleRepository vehicleRepository;
+    private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${app.seeder.reset-before-seed:false}")
@@ -70,11 +81,15 @@ public class DbSeeder implements CommandLineRunner {
                     ReservationRepository reservationRepository,
                     ClientReportRepository clientReportRepository,
                     ClientPlanPersistenceRepository clientPlanRepository,
-                    SubscriptionPersistenceRepository subscriptionRepository,
-                    ReceiptPersistenceRepository receiptRepository,
-                    EmployeeRepository employeeRepository,
-                    OccupancyByHourRepository occupancyByHourRepository,
-                    WeeklyTrendRepository weeklyTrendRepository) {
+                     SubscriptionPersistenceRepository subscriptionRepository,
+                     ReceiptPersistenceRepository receiptRepository,
+                     EmployeeRepository employeeRepository,
+                     OccupancyByHourRepository occupancyByHourRepository,
+                     WeeklyTrendRepository weeklyTrendRepository,
+                     UserAccountRepository userAccountRepository,
+                     FavoriteRepository favoriteRepository,
+                     VehicleRepository vehicleRepository,
+                     PasswordEncoder passwordEncoder) {
         this.parkingRepository = parkingRepository;
         this.blueprintRepository = blueprintRepository;
         this.detectedSpotRepository = detectedSpotRepository;
@@ -86,6 +101,10 @@ public class DbSeeder implements CommandLineRunner {
         this.employeeRepository = employeeRepository;
         this.occupancyByHourRepository = occupancyByHourRepository;
         this.weeklyTrendRepository = weeklyTrendRepository;
+        this.userAccountRepository = userAccountRepository;
+        this.favoriteRepository = favoriteRepository;
+        this.vehicleRepository = vehicleRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -95,6 +114,8 @@ public class DbSeeder implements CommandLineRunner {
         try {
             if (resetBeforeSeed) {
                 log.info("reset-before-seed is true, wiping tables...");
+                favoriteRepository.deleteAll();
+                vehicleRepository.deleteAll();
                 clientReportRepository.deleteAll(); // references reservations, delete first
                 reservationRepository.deleteAll();
                 detectedSpotRepository.deleteAll();
@@ -106,6 +127,7 @@ public class DbSeeder implements CommandLineRunner {
                 employeeRepository.deleteAll();
                 occupancyByHourRepository.deleteAll();
                 weeklyTrendRepository.deleteAll();
+                userAccountRepository.deleteAll();
                 log.info("tables wiped successfully");
             } else if (parkingRepository.count() > 0) {
                 log.info("tables already contain data, skipping seed");
@@ -121,7 +143,9 @@ public class DbSeeder implements CommandLineRunner {
 
             var root = objectMapper.readTree(resource.getInputStream());
 
+            seedUsers(root.get("users"));
             seedParkings(root.get("parkings"));
+            seedFavorites(root.get("favorites"));
             seedBlueprints(root.get("blueprints"));
             seedDetectedSpots(root.get("detectedSpots"));
             seedReservations(root.get("reservations"));
@@ -132,6 +156,7 @@ public class DbSeeder implements CommandLineRunner {
             seedEmployees(root.get("employees"));
             seedOccupancyByHour(root.get("occupancyByHour"));
             seedWeeklyTrends(root.get("weeklyTrends"));
+            seedVehicles(root.get("vehicles"));
 
             log.info("seed completed successfully");
         } catch (Exception e) {
@@ -139,11 +164,26 @@ public class DbSeeder implements CommandLineRunner {
         }
     }
 
-    private final Map<String, Long> parkingIdMap = new HashMap<>();
-    private final Map<String, Long> blueprintIdMap = new HashMap<>();
-    private final Map<String, Long> clientPlanIdMap = new HashMap<>();
-    // maps db.json's reservation ids to the new Postgres-generated ids
-    private final Map<String, Long> reservationIdMap = new HashMap<>();
+    private void seedUsers(JsonNode users) {
+        if (users == null || !users.isArray()) {
+            log.warn("no users found in db.json");
+            return;
+        }
+        log.info("seeding {} users...", users.size());
+        for (var node : users) {
+            var user = new UserAccount(
+                    node.get("firstName").asText(),
+                    node.get("lastName").asText(),
+                    node.get("email").asText(),
+                    passwordEncoder.encode(node.path("password").asText("Password123!")),
+                    nullableText(node, "phone") == null ? "" : nullableText(node, "phone"),
+                    nullableText(node, "city") == null ? "" : nullableText(node, "city"),
+                    UserRole.valueOf(node.path("role").asText("client"))
+            );
+            user.setId(node.get("id").asText());
+            userAccountRepository.save(user);
+        }
+    }
 
     private void seedParkings(JsonNode parkings) {
         if (parkings == null || !parkings.isArray()) {
@@ -153,7 +193,7 @@ public class DbSeeder implements CommandLineRunner {
         log.info("seeding {} parkings...", parkings.size());
         for (var node : parkings) {
             var parking = new Parking(
-                    extractNumericId(node.has("adminId") ? node.get("adminId").asText("") : ""),
+                    nullableText(node, "adminId"),
                     node.get("name").asText(),
                     node.get("address").asText(),
                     node.get("city").asText(),
@@ -171,8 +211,36 @@ public class DbSeeder implements CommandLineRunner {
                     nullableInt(node, "totalCapacity"),
                     nullableDouble(node, "efficiencyIndex")
             );
-            var saved = parkingRepository.save(parking);
-            parkingIdMap.put(node.get("id").asText(), saved.getId());
+            parking.setId(node.get("id").asText());
+            parkingRepository.save(parking);
+        }
+    }
+
+    private void seedFavorites(JsonNode favorites) {
+        if (favorites == null || !favorites.isArray()) {
+            log.warn("no favorites found in db.json");
+            return;
+        }
+        log.info("seeding {} favorites...", favorites.size());
+        for (var node : favorites) {
+            var clientId = node.get("clientId").asText();
+            if (!userAccountRepository.existsById(clientId)) {
+                log.warn("clientId {} not found, skipping favorite", clientId);
+                continue;
+            }
+            var parkingId = node.get("parkingId").asText();
+            if (!parkingRepository.existsById(parkingId)) {
+                log.warn("parkingId {} not found, skipping favorite", parkingId);
+                continue;
+            }
+            var favorite = new Favorite(
+                    clientId,
+                    parkingId,
+                    node.get("distanceMi").asDouble(),
+                    node.get("lastVisited").asText()
+            );
+            favorite.setId(node.get("id").asText());
+            favoriteRepository.save(favorite);
         }
     }
 
@@ -183,20 +251,20 @@ public class DbSeeder implements CommandLineRunner {
         }
         log.info("seeding {} blueprints...", blueprints.size());
         for (var node : blueprints) {
-            var parkingId = parkingIdMap.get(node.get("parkingId").asText());
-            if (parkingId == null) {
+            var parkingId = node.get("parkingId").asText();
+            if (!parkingRepository.existsById(parkingId)) {
                 log.warn("parkingId {} not found, skipping blueprint", node.get("parkingId").asText());
                 continue;
             }
 
             var blueprint = new Blueprint(
-                    extractNumericId(node.has("adminId") ? node.get("adminId").asText("") : ""),
+                    nullableText(node, "adminId"),
                     parkingId,
                     node.has("name") ? node.get("name").asText("") : "",
                     node.has("dataUrl") ? node.get("dataUrl").asText("") : ""
             );
-            var saved = blueprintRepository.save(blueprint);
-            blueprintIdMap.put(node.get("id").asText(), saved.getId());
+            blueprint.setId(node.get("id").asText());
+            blueprintRepository.save(blueprint);
         }
     }
 
@@ -207,19 +275,19 @@ public class DbSeeder implements CommandLineRunner {
         }
         log.info("seeding {} detectedSpots...", detectedSpots.size());
         for (var node : detectedSpots) {
-            var blueprintId = blueprintIdMap.get(node.get("blueprintId").asText());
-            if (blueprintId == null) {
+            var blueprintId = node.get("blueprintId").asText();
+            if (!blueprintRepository.existsById(blueprintId)) {
                 log.warn("blueprintId {} not found, skipping detectedSpot", node.get("blueprintId").asText());
                 continue;
             }
 
-            var parkingId = node.has("parkingId") ? parkingIdMap.get(node.get("parkingId").asText()) : null;
+            var parkingId = node.has("parkingId") ? node.get("parkingId").asText() : null;
 
             var statusStr = node.has("status") ? node.get("status").asText("available") : "available";
             var status = SpotStatus.fromDisplayName(statusStr);
 
             var detectedSpot = new DetectedSpot(
-                    node.has("localId") ? node.get("localId").asInt() : null,
+                    node.has("code") ? node.get("code").asInt() : nullableInt(node, "localId"),
                     blueprintId,
                     parkingId,
                     node.has("row") ? node.get("row").asInt() : null,
@@ -230,7 +298,7 @@ public class DbSeeder implements CommandLineRunner {
                     node.has("h_pct") ? node.get("h_pct").asDouble() : 0.0,
                     status
             );
-
+            detectedSpot.setId(node.get("id").asText());
             detectedSpotRepository.save(detectedSpot);
         }
     }
@@ -244,8 +312,8 @@ public class DbSeeder implements CommandLineRunner {
         }
         log.info("seeding {} reservations...", reservations.size());
         for (var node : reservations) {
-            var parkingId = parkingIdMap.get(node.get("parkingId").asText());
-            if (parkingId == null) {
+            var parkingId = node.get("parkingId").asText();
+            if (!parkingRepository.existsById(parkingId)) {
                 log.warn("parkingId {} not found, skipping reservation", node.get("parkingId").asText());
                 continue;
             }
@@ -254,7 +322,7 @@ public class DbSeeder implements CommandLineRunner {
             var endDate = parseDateTime(node.get("endDate").asText());
 
             var reservation = new Reservation(
-                    extractNumericId(node.get("clientId").asText()),
+                    node.get("clientId").asText(),
                     parkingId,
                     node.get("code").asText(),
                     node.get("spot").asText(),
@@ -264,6 +332,7 @@ public class DbSeeder implements CommandLineRunner {
                     node.has("baseAmount") && !node.get("baseAmount").isNull() ? node.get("baseAmount").asDouble() : null,
                     node.has("rating") && !node.get("rating").isNull() ? node.get("rating").asDouble() : null
             );
+            reservation.setId(node.get("id").asText());
 
             var status = node.has("status") ? node.get("status").asText("active") : "active";
             switch (status) {
@@ -272,8 +341,7 @@ public class DbSeeder implements CommandLineRunner {
                 default -> reservation.updateStatus(ReservationStatus.ACTIVE);
             }
 
-            var savedReservation = reservationRepository.save(reservation);
-            reservationIdMap.put(node.get("id").asText(), savedReservation.getId());
+            reservationRepository.save(reservation);
         }
     }
 
@@ -284,24 +352,26 @@ public class DbSeeder implements CommandLineRunner {
         }
         log.info("seeding {} clientReports...", clientReports.size());
         for (var node : clientReports) {
-            var parkingId = parkingIdMap.get(node.get("parkingId").asText());
-            if (parkingId == null) {
+            var parkingId = node.get("parkingId").asText();
+            if (!parkingRepository.existsById(parkingId)) {
                 log.warn("parkingId {} not found, skipping clientReport", node.get("parkingId").asText());
                 continue;
             }
-            var reservationId = reservationIdMap.get(node.get("reservationId").asText());
-            if (reservationId == null) {
+            var reservationId = node.get("reservationId").asText();
+            if (!reservationRepository.existsById(reservationId)) {
                 log.warn("reservationId {} not found, skipping clientReport", node.get("reservationId").asText());
                 continue;
             }
 
             var report = new ClientReport(
-                    extractNumericId(node.get("clientId").asText()),
+                    node.get("clientId").asText(),
                     parkingId,
                     reservationId,
+                    node.get("code").asText(),
                     ReportType.fromDisplayName(node.get("type").asText()),
-                    node.get("date").asText()
+                    parseInstant(node.get("date").asText())
             );
+            report.setId(node.get("id").asText());
 
             var status = node.has("status") ? node.get("status").asText("submitted") : "submitted";
             report.updateStatus(ReportStatus.fromDisplayName(status));
@@ -335,9 +405,8 @@ public class DbSeeder implements CommandLineRunner {
                 }
             }
             entity.setFeatures(features);
-
-            var saved = clientPlanRepository.save(entity);
-            clientPlanIdMap.put(node.get("id").asText(), saved.getId());
+            entity.setId(node.get("id").asText());
+            clientPlanRepository.save(entity);
         }
     }
 
@@ -348,14 +417,15 @@ public class DbSeeder implements CommandLineRunner {
         }
         log.info("seeding {} subscriptions...", subscriptions.size());
         for (var node : subscriptions) {
-            var planId = clientPlanIdMap.get(node.get("planId").asText());
-            if (planId == null) {
+            var planId = node.get("planId").asText();
+            if (!clientPlanRepository.existsById(planId)) {
                 log.warn("planId {} not found, skipping subscription", node.get("planId").asText());
                 continue;
             }
 
             var entity = new SubscriptionPersistenceEntity();
-            entity.setClientId(extractNumericId(node.get("clientId").asText()));
+            entity.setId(node.get("id").asText());
+            entity.setClientId(node.get("clientId").asText());
             entity.setPlanId(planId);
             entity.setStatus(node.get("status").asText());
             entity.setRenewsOn(node.get("renewsOn").asText());
@@ -380,7 +450,8 @@ public class DbSeeder implements CommandLineRunner {
         log.info("seeding {} receipts...", receipts.size());
         for (var node : receipts) {
             var entity = new ReceiptPersistenceEntity();
-            entity.setClientId(extractNumericId(node.get("clientId").asText()));
+            entity.setId(node.get("id").asText());
+            entity.setClientId(node.get("clientId").asText());
             entity.setInvoiceNumber(node.get("invoiceNumber").asText());
             entity.setLocationName(node.get("locationName").asText());
             entity.setDate(node.get("date").asText());
@@ -402,8 +473,8 @@ public class DbSeeder implements CommandLineRunner {
         }
         log.info("seeding {} employees...", employees.size());
         for (var node : employees) {
-            var parkingId = node.has("parkingId") ? parkingIdMap.get(node.get("parkingId").asText()) : null;
-            if (parkingId == null) {
+            var parkingId = node.has("parkingId") ? node.get("parkingId").asText() : null;
+            if (parkingId == null || !parkingRepository.existsById(parkingId)) {
                 log.warn("parkingId {} not found, skipping employee", node.get("parkingId").asText());
                 continue;
             }
@@ -418,7 +489,7 @@ public class DbSeeder implements CommandLineRunner {
                     node.get("shiftEnd").asText(),
                     EmployeeStatus.fromDisplayName(node.get("status").asText())
             );
-
+            employee.setId(node.get("id").asText());
             employeeRepository.save(employee);
         }
     }
@@ -430,13 +501,14 @@ public class DbSeeder implements CommandLineRunner {
         }
         log.info("seeding {} occupancyByHour points...", occupancyByHour.size());
         for (var node : occupancyByHour) {
-            var parkingId = parkingIdMap.get(node.get("parkingId").asText());
-            if (parkingId == null) {
+            var parkingId = node.get("parkingId").asText();
+            if (!parkingRepository.existsById(parkingId)) {
                 log.warn("parkingId {} not found, skipping occupancyByHour point", node.get("parkingId").asText());
                 continue;
             }
 
             var point = new OccupancyByHour(parkingId, node.get("hour").asText(), node.get("intensity").asInt());
+            point.setId(node.get("id").asText());
             occupancyByHourRepository.save(point);
         }
     }
@@ -448,23 +520,39 @@ public class DbSeeder implements CommandLineRunner {
         }
         log.info("seeding {} weeklyTrends points...", weeklyTrends.size());
         for (var node : weeklyTrends) {
-            var parkingId = parkingIdMap.get(node.get("parkingId").asText());
-            if (parkingId == null) {
+            var parkingId = node.get("parkingId").asText();
+            if (!parkingRepository.existsById(parkingId)) {
                 log.warn("parkingId {} not found, skipping weeklyTrend point", node.get("parkingId").asText());
                 continue;
             }
 
             var point = new WeeklyTrend(parkingId, node.get("day").asText(), node.get("value").asDouble());
+            point.setId(node.get("id").asText());
             weeklyTrendRepository.save(point);
         }
     }
 
-    private Long extractNumericId(String prefixedId) {
-        if (prefixedId == null || prefixedId.isBlank()) return null;
-        try {
-            return Long.parseLong(prefixedId.replaceAll("^[a-zA-Z]+-", ""));
-        } catch (NumberFormatException e) {
-            return null;
+    private void seedVehicles(JsonNode vehicles) {
+        if (vehicles == null || !vehicles.isArray()) {
+            log.warn("no vehicles found in db.json");
+            return;
+        }
+        log.info("seeding {} vehicles...", vehicles.size());
+        for (var node : vehicles) {
+            var clientId = node.get("clientId").asText();
+            if (!userAccountRepository.existsById(clientId)) {
+                log.warn("clientId {} not found, skipping vehicle", clientId);
+                continue;
+            }
+            var vehicle = new Vehicle(
+                    clientId,
+                    node.get("licensePlate").asText(),
+                    node.get("vehicleType").asText(),
+                    node.get("brand").asText(),
+                    node.get("model").asText()
+            );
+            vehicle.setId(node.get("id").asText());
+            vehicleRepository.save(vehicle);
         }
     }
 
@@ -490,6 +578,15 @@ public class DbSeeder implements CommandLineRunner {
                 log.warn("could not parse date '{}', using current time", dateStr);
                 return LocalDateTime.now();
             }
+        }
+    }
+
+    private Instant parseInstant(String dateStr) {
+        try {
+            return Instant.parse(dateStr);
+        } catch (Exception e) {
+            log.warn("could not parse instant '{}', using current time", dateStr);
+            return Instant.now();
         }
     }
 }

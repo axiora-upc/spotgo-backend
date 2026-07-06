@@ -7,6 +7,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.util.Date;
+import java.util.UUID;
 
 @Getter
 @MappedSuperclass
@@ -14,8 +15,8 @@ import java.util.Date;
 public abstract class AuditableAbstractPersistenceEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(nullable = false, updatable = false, length = 36)
+    private String id;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
@@ -25,7 +26,14 @@ public abstract class AuditableAbstractPersistenceEntity {
     @Column(nullable = false)
     private Date updatedAt;
 
-    public void setId(Long id){
+    public void setId(String id){
         this.id = id;
+    }
+
+    @PrePersist
+    protected void ensureId() {
+        if (id == null || id.isBlank()) {
+            id = UUID.randomUUID().toString();
+        }
     }
 }

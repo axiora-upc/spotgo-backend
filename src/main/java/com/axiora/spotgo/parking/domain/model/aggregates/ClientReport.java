@@ -2,34 +2,34 @@ package com.axiora.spotgo.parking.domain.model.aggregates;
 
 import com.axiora.spotgo.parking.domain.model.valueobjects.ReportStatus;
 import com.axiora.spotgo.parking.domain.model.valueobjects.ReportType;
+import com.axiora.spotgo.shared.infrastructure.persistence.jpa.entities.UuidIdentifiedAggregateRoot;
 import jakarta.persistence.*;
 import lombok.Getter;
-import org.springframework.data.domain.AbstractAggregateRoot;
+import java.time.Instant;
 
 @Entity
 @Table(name = "clientReports")
 @Getter
-public class ClientReport extends AbstractAggregateRoot<ClientReport> {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class ClientReport extends UuidIdentifiedAggregateRoot<ClientReport> {
 
     @Column(name = "clientId", nullable = false)
-    private Long clientId;
+    private String clientId;
 
     @Column(name = "parkingId", nullable = false)
-    private Long parkingId;
+    private String parkingId;
 
     @Column(name = "reservationId", nullable = false)
-    private Long reservationId;
+    private String reservationId;
+
+    @Column(nullable = false, unique = true)
+    private String code;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ReportType type;
 
     @Column(nullable = false)
-    private String date;
+    private Instant date;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -39,10 +39,11 @@ public class ClientReport extends AbstractAggregateRoot<ClientReport> {
     }
 
     // status always starts as SUBMITTED; it only changes later via PATCH
-    public ClientReport(Long clientId, Long parkingId, Long reservationId, ReportType type, String date) {
+    public ClientReport(String clientId, String parkingId, String reservationId, String code, ReportType type, Instant date) {
         this.clientId = clientId;
         this.parkingId = parkingId;
         this.reservationId = reservationId;
+        this.code = code;
         this.type = type;
         this.date = date;
         this.status = ReportStatus.SUBMITTED;
