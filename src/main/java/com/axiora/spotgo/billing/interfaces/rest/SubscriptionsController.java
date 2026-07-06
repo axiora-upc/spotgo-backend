@@ -26,6 +26,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import static org.springframework.web.bind.annotation.RequestMethod.PATCH;
@@ -35,6 +36,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping(value = "/api/v1/subscriptions", produces = MediaType.APPLICATION_JSON_VALUE)
+@PreAuthorize("hasRole('CLIENT')")
 @Tag(name = "Subscriptions", description = "Endpoints for managing client subscriptions")
 public class SubscriptionsController {
 

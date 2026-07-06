@@ -24,6 +24,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
@@ -31,6 +32,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping(value = "/api/v1/receipts", produces = MediaType.APPLICATION_JSON_VALUE)
+@PreAuthorize("hasRole('CLIENT')")
 @Tag(name = "Receipts", description = "Endpoints for managing parking receipts")
 public class ReceiptsController {
 

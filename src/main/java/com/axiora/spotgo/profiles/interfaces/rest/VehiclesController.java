@@ -22,6 +22,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -57,6 +58,7 @@ public class VehiclesController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('CLIENT')")
     @Operation(summary = "Create vehicle", description = "Creates a new vehicle for a client.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Vehicle created successfully",
@@ -71,6 +73,7 @@ public class VehiclesController {
     }
 
     @PatchMapping("/{vehicleId}")
+    @PreAuthorize("hasRole('CLIENT')")
     @Operation(summary = "Update vehicle", description = "Updates mutable vehicle fields.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Vehicle updated successfully",
@@ -87,6 +90,7 @@ public class VehiclesController {
     }
 
     @DeleteMapping("/{vehicleId}")
+    @PreAuthorize("hasRole('CLIENT')")
     @Operation(summary = "Delete vehicle", description = "Deletes a vehicle by identifier.")
     @ApiResponse(responseCode = "204", description = "Vehicle deleted successfully")
     public ResponseEntity<Void> deleteVehicle(@PathVariable String vehicleId) {

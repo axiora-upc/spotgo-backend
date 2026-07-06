@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -73,6 +74,7 @@ public class DetectedSpotsController {
     }
 
     @PatchMapping("/{spotId}/status")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update spot status", description = "Updates the status of a detected parking spot.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Status updated successfully"),
@@ -89,6 +91,7 @@ public class DetectedSpotsController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create a detected spot", description = "Creates a new detected parking spot on a blueprint.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Detected spot created successfully",
