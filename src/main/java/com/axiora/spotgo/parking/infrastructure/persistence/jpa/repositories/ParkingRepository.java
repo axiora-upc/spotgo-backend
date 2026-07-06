@@ -7,6 +7,6 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface ParkingRepository extends JpaRepository<Parking, Long> {
-    Optional<Parking> findByName(String name);
+public interface ParkingRepository extends JpaRepository<Parking, String> {
+    Optional<Parking> findByAdminId(String adminId);
 }

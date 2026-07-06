@@ -11,7 +11,7 @@ public class ClientPlan extends AbstractDomainAggregateRoot<ClientPlan> {
 
     @Getter
     @Setter
-    private Long id;
+    private String id;
 
     @Getter
     private PlanType type;
@@ -34,7 +34,7 @@ public class ClientPlan extends AbstractDomainAggregateRoot<ClientPlan> {
     @Getter
     private List<String> features;
 
-    public ClientPlan(Long id, PlanType type, String name, Double monthlyPrice,
+    public ClientPlan(String id, PlanType type, String name, Double monthlyPrice,
                       String description, Integer reservationsPerMonth,
                       Double discountPercent, List<String> features) {
         this.id = id;

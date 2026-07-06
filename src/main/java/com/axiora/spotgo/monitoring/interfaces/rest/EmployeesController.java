@@ -12,6 +12,7 @@ import com.axiora.spotgo.monitoring.application.internal.queryservices.Monitorin
 import com.axiora.spotgo.monitoring.interfaces.rest.resources.CreateEmployeeResource;
 import com.axiora.spotgo.monitoring.interfaces.rest.resources.EmployeeResource;
 import com.axiora.spotgo.monitoring.interfaces.rest.resources.UpdateEmployeeResource;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,13 +21,14 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/employees")
+@PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Employees", description = "Endpoints for managing parking employees")
 public class EmployeesController {
 
@@ -45,7 +47,7 @@ public class EmployeesController {
                     content = @Content(schema = @Schema(implementation = EmployeeResource.class))),
             @ApiResponse(responseCode = "400", description = "Invalid input")
     })
-    public ResponseEntity<EmployeeResource> createEmployee(@RequestBody CreateEmployeeResource resource) {
+    public ResponseEntity<EmployeeResource> createEmployee(@Valid @RequestBody CreateEmployeeResource resource) {
         var command = new CreateEmployeeCommand(
                 resource.parkingId(), resource.firstName(), resource.lastName(),
                 EmployeeRole.fromDisplayName(resource.role()), resource.schedule(),
@@ -63,7 +65,7 @@ public class EmployeesController {
             content = @Content(schema = @Schema(implementation = EmployeeResource.class)))
     public ResponseEntity<List<EmployeeResource>> getAllEmployees() {
         var employees = monitoringQueryService.handle(new GetAllEmployeesQuery());
-        var resources = employees.stream().map(this::toResource).collect(Collectors.toList());
+        var resources = employees.stream().map(this::toResource).toList();
         return ResponseEntity.ok(resources);
     }
 
@@ -75,8 +77,8 @@ public class EmployeesController {
             @ApiResponse(responseCode = "400", description = "Invalid input or employee not found")
     })
     public ResponseEntity<EmployeeResource> updateEmployee(
-            @PathVariable Long employeeId,
-            @RequestBody UpdateEmployeeResource resource) {
+            @PathVariable String employeeId,
+            @Valid @RequestBody UpdateEmployeeResource resource) {
         var command = new UpdateEmployeeCommand(
                 employeeId, resource.firstName(), resource.lastName(),
                 EmployeeRole.fromDisplayName(resource.role()), resource.schedule(),
@@ -91,7 +93,7 @@ public class EmployeesController {
     @DeleteMapping("/{employeeId}")
     @Operation(summary = "Delete an employee", description = "Removes an employee by its ID.")
     @ApiResponse(responseCode = "204", description = "Employee deleted successfully")
-    public ResponseEntity<Void> deleteEmployee(@PathVariable Long employeeId) {
+    public ResponseEntity<Void> deleteEmployee(@PathVariable String employeeId) {
         monitoringCommandService.handle(new DeleteEmployeeCommand(employeeId));
         return ResponseEntity.noContent().build();
     }

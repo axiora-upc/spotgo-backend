@@ -1,8 +1,8 @@
 package com.axiora.spotgo.billing.domain.model.commands;
 
 public record CreateSubscriptionCommand(
-        Long clientId,
-        Long planId,
+        String clientId,
+        String planId,
         String renewsOn,
         Double pricePerMonth,
         String memberSince,

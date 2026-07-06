@@ -5,14 +5,15 @@ import com.axiora.spotgo.billing.domain.model.aggregates.Receipt;
 import com.axiora.spotgo.billing.domain.model.queries.GetAllReceiptsQuery;
 import com.axiora.spotgo.billing.domain.model.queries.GetReceiptByIdQuery;
 import com.axiora.spotgo.billing.domain.model.queries.GetReceiptsByBookingCodeQuery;
-import com.axiora.spotgo.billing.domain.model.queries.GetReceiptsByClientIdQuery;
 import com.axiora.spotgo.billing.domain.repositories.ReceiptRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
 @Service
+@Transactional(readOnly = true)
 public class ReceiptQueryServiceImpl implements ReceiptQueryService {
 
     private final ReceiptRepository receiptRepository;
@@ -29,11 +30,6 @@ public class ReceiptQueryServiceImpl implements ReceiptQueryService {
     @Override
     public List<Receipt> handle(GetAllReceiptsQuery query) {
         return receiptRepository.findAll();
-    }
-
-    @Override
-    public List<Receipt> handle(GetReceiptsByClientIdQuery query) {
-        return receiptRepository.findAllByClientId(query.clientId());
     }
 
     @Override

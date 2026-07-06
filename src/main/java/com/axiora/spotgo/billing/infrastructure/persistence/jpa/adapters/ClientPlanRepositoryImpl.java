@@ -19,7 +19,7 @@ public class ClientPlanRepositoryImpl implements ClientPlanRepository {
     }
 
     @Override
-    public Optional<ClientPlan> findById(Long id) {
+    public Optional<ClientPlan> findById(String id) {
         return clientPlanPersistenceRepository.findById(id)
                 .map(ClientPlanPersistenceAssembler::toDomainFromPersistence);
     }

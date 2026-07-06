@@ -9,8 +9,10 @@ import com.axiora.spotgo.billing.domain.repositories.SubscriptionRepository;
 import com.axiora.spotgo.shared.application.result.ApplicationError;
 import com.axiora.spotgo.shared.application.result.Result;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class SubscriptionCommandServiceImpl implements SubscriptionCommandService {
 
     private final SubscriptionRepository subscriptionRepository;

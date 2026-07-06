@@ -9,9 +9,9 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface DetectedSpotRepository extends JpaRepository<DetectedSpot, Long> {
-    List<DetectedSpot> findByBlueprintId(Long blueprintId);
+public interface DetectedSpotRepository extends JpaRepository<DetectedSpot, String> {
+    List<DetectedSpot> findByBlueprintId(String blueprintId);
 
     @Query("SELECT d FROM DetectedSpot d WHERE d.blueprintId IN (SELECT b.id FROM Blueprint b WHERE b.parkingId = :parkingId)")
-    List<DetectedSpot> findByParkingId(@Param("parkingId") Long parkingId);
+    List<DetectedSpot> findByParkingId(@Param("parkingId") String parkingId);
 }

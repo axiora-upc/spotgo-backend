@@ -2,19 +2,15 @@ package com.axiora.spotgo.monitoring.domain.model.aggregates;
 
 import jakarta.persistence.*;
 import lombok.Getter;
-import org.springframework.data.domain.AbstractAggregateRoot;
+import com.axiora.spotgo.shared.infrastructure.persistence.jpa.entities.UuidIdentifiedAggregateRoot;
 
 @Entity
 @Table(name = "occupancyByHour")
 @Getter
-public class OccupancyByHour extends AbstractAggregateRoot<OccupancyByHour> {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class OccupancyByHour extends UuidIdentifiedAggregateRoot<OccupancyByHour> {
 
     @Column(name = "parkingId", nullable = false)
-    private Long parkingId;
+    private String parkingId;
 
     @Column(nullable = false)
     private String hour;
@@ -25,7 +21,7 @@ public class OccupancyByHour extends AbstractAggregateRoot<OccupancyByHour> {
     public OccupancyByHour() {
     }
 
-    public OccupancyByHour(Long parkingId, String hour, Integer intensity) {
+    public OccupancyByHour(String parkingId, String hour, Integer intensity) {
         this.parkingId = parkingId;
         this.hour = hour;
         this.intensity = intensity;

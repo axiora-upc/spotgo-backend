@@ -8,7 +8,7 @@ import jakarta.persistence.*;
 public class ReceiptPersistenceEntity extends AuditableAbstractPersistenceEntity {
 
     @Column(nullable = false)
-    private Long clientId;
+    private String clientId;
 
     @Column(nullable = false, unique = true)
     private String invoiceNumber;
@@ -40,8 +40,8 @@ public class ReceiptPersistenceEntity extends AuditableAbstractPersistenceEntity
     public ReceiptPersistenceEntity() {
     }
 
-    public Long getClientId() { return clientId; }
-    public void setClientId(Long clientId) { this.clientId = clientId; }
+    public String getClientId() { return clientId; }
+    public void setClientId(String clientId) { this.clientId = clientId; }
 
     public String getInvoiceNumber() { return invoiceNumber; }
     public void setInvoiceNumber(String invoiceNumber) { this.invoiceNumber = invoiceNumber; }

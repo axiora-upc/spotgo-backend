@@ -1,4 +1,4 @@
 package com.axiora.spotgo.parking.domain.model.commands;
 
-public record UpdateParkingRatingCommand(Long parkingId, Double rating) {
+public record UpdateParkingRatingCommand(String parkingId, Double rating) {
 }

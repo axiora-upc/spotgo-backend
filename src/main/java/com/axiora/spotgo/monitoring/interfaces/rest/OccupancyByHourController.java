@@ -11,13 +11,14 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/occupancyByHour")
+@PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "OccupancyByHour", description = "Endpoints for reading hourly occupancy data")
 public class OccupancyByHourController {
 
@@ -31,14 +32,14 @@ public class OccupancyByHourController {
     @Operation(summary = "Get occupancy by hour", description = "Returns hourly occupancy points, optionally filtered by parking ID.")
     @ApiResponse(responseCode = "200", description = "List of occupancy points returned",
             content = @Content(schema = @Schema(implementation = OccupancyByHourResource.class)))
-    public ResponseEntity<List<OccupancyByHourResource>> getOccupancyByHour(@RequestParam(required = false) Long parkingId) {
+    public ResponseEntity<List<OccupancyByHourResource>> getOccupancyByHour(@RequestParam(required = false) String parkingId) {
         List<OccupancyByHour> points;
         if (parkingId != null) {
             points = monitoringQueryService.handle(new GetOccupancyByHourByParkingIdQuery(parkingId));
         } else {
             points = monitoringQueryService.handle(new GetAllOccupancyByHourQuery());
         }
-        var resources = points.stream().map(this::toResource).collect(Collectors.toList());
+        var resources = points.stream().map(this::toResource).toList();
         return ResponseEntity.ok(resources);
     }
 

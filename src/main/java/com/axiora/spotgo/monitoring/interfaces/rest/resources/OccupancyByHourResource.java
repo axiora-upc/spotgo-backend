@@ -4,10 +4,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public record OccupancyByHourResource(
         @Schema(description = "Unique identifier of the data point", example = "1")
-        Long id,
+        String id,
 
         @Schema(description = "Parking identifier", example = "1")
-        Long parkingId,
+        String parkingId,
 
         @Schema(description = "Hour of the day", example = "06:00")
         String hour,

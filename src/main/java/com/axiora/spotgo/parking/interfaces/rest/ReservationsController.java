@@ -2,12 +2,17 @@ package com.axiora.spotgo.parking.interfaces.rest;
 
 import com.axiora.spotgo.parking.domain.model.aggregates.Reservation;
 import com.axiora.spotgo.parking.domain.model.commands.ReserveSpotCommand;
+import com.axiora.spotgo.parking.domain.model.commands.UpdateReservationCommand;
+import com.axiora.spotgo.parking.domain.model.valueobjects.ReservationStatus;
 import com.axiora.spotgo.parking.domain.model.queries.GetAllReservationsQuery;
+import com.axiora.spotgo.parking.domain.model.queries.GetReservationsByClientIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetReservationsByParkingIdQuery;
 import com.axiora.spotgo.parking.application.internal.commandservices.ParkingCommandService;
 import com.axiora.spotgo.parking.application.internal.queryservices.ParkingQueryService;
 import com.axiora.spotgo.parking.interfaces.rest.resources.CreateReservationResource;
 import com.axiora.spotgo.parking.interfaces.rest.resources.ReservationResource;
+import com.axiora.spotgo.parking.interfaces.rest.resources.UpdateReservationResource;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,10 +21,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/reservations")
@@ -28,20 +33,20 @@ public class ReservationsController {
 
     private final ParkingCommandService parkingCommandService;
     private final ParkingQueryService parkingQueryService;
-
     public ReservationsController(ParkingCommandService parkingCommandService, ParkingQueryService parkingQueryService) {
         this.parkingCommandService = parkingCommandService;
         this.parkingQueryService = parkingQueryService;
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('CLIENT')")
     @Operation(summary = "Reserve a spot", description = "Creates a new parking spot reservation.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Reservation created successfully",
                     content = @Content(schema = @Schema(implementation = ReservationResource.class))),
             @ApiResponse(responseCode = "400", description = "Invalid input")
     })
-    public ResponseEntity<ReservationResource> reserveSpot(@RequestBody CreateReservationResource resource) {
+    public ResponseEntity<ReservationResource> reserveSpot(@Valid @RequestBody CreateReservationResource resource) {
         var command = new ReserveSpotCommand(
                 resource.clientId(),
                 resource.parkingId(),
@@ -66,17 +71,36 @@ public class ReservationsController {
     @Operation(summary = "Get all reservations", description = "Returns a list of reservations, optionally filtered by parking ID.")
     @ApiResponse(responseCode = "200", description = "List of reservations returned",
             content = @Content(schema = @Schema(implementation = ReservationResource.class)))
-    public ResponseEntity<List<ReservationResource>> getAllReservations(@RequestParam(required = false) Long parkingId) {
+    public ResponseEntity<List<ReservationResource>> getAllReservations(@RequestParam(required = false) String parkingId,
+                                                                       @RequestParam(required = false) String clientId) {
         List<Reservation> reservations;
         if (parkingId != null) {
             reservations = parkingQueryService.handle(new GetReservationsByParkingIdQuery(parkingId));
+        } else if (clientId != null) {
+            reservations = parkingQueryService.handle(new GetReservationsByClientIdQuery(clientId));
         } else {
             reservations = parkingQueryService.handle(new GetAllReservationsQuery());
         }
         var resources = reservations.stream()
                 .map(this::toResource)
-                .collect(Collectors.toList());
+                .toList();
         return ResponseEntity.ok(resources);
+    }
+
+    @PatchMapping("/{reservationId}")
+    public ResponseEntity<ReservationResource> updateReservation(@PathVariable String reservationId,
+                                                                 @RequestBody UpdateReservationResource resource) {
+        ReservationStatus status = resource.status() == null ? null : ReservationStatus.fromValue(resource.status());
+        var reservation = parkingCommandService.handle(new UpdateReservationCommand(
+                reservationId,
+                resource.endDate(),
+                resource.amount(),
+                resource.baseAmount(),
+                resource.rating(),
+                status
+        ));
+        return reservation.map(value -> ResponseEntity.ok(toResource(value)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     private ReservationResource toResource(Reservation reservation) {

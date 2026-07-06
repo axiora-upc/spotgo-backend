@@ -4,10 +4,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public record ReceiptResource(
         @Schema(description = "Unique identifier of the receipt", example = "1")
-        Long id,
+        String id,
 
         @Schema(description = "Client identifier", example = "1")
-        Long clientId,
+        String clientId,
 
         @Schema(description = "Invoice number", example = "INV-2026-0412")
         String invoiceNumber,

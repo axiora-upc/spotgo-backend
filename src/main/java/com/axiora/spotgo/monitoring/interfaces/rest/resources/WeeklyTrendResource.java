@@ -4,10 +4,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public record WeeklyTrendResource(
         @Schema(description = "Unique identifier of the data point", example = "1")
-        Long id,
+        String id,
 
         @Schema(description = "Parking identifier", example = "1")
-        Long parkingId,
+        String parkingId,
 
         @Schema(description = "Day of the week", example = "Mon",
                 allowableValues = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"})

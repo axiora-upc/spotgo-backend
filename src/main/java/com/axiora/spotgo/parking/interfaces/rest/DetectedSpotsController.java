@@ -10,6 +10,7 @@ import com.axiora.spotgo.parking.application.internal.commandservices.ParkingCom
 import com.axiora.spotgo.parking.application.internal.queryservices.ParkingQueryService;
 import com.axiora.spotgo.parking.interfaces.rest.resources.DetectedSpotResource;
 import com.axiora.spotgo.parking.interfaces.rest.resources.CreateDetectedSpotResource;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,10 +19,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/detectedSpots")
@@ -41,8 +42,8 @@ public class DetectedSpotsController {
     @ApiResponse(responseCode = "200", description = "List of detected spots returned",
             content = @Content(schema = @Schema(implementation = DetectedSpotResource.class)))
     public ResponseEntity<List<DetectedSpotResource>> getAllDetectedSpots(
-            @RequestParam(required = false) Long parkingId,
-            @RequestParam(required = false) Long blueprintId) {
+            @RequestParam(required = false) String parkingId,
+            @RequestParam(required = false) String blueprintId) {
         List<DetectedSpot> spots;
         if (parkingId != null) {
             spots = parkingQueryService.handle(new GetDetectedSpotsByParkingIdQuery(parkingId));
@@ -53,7 +54,7 @@ public class DetectedSpotsController {
         }
         var resources = spots.stream()
                 .map(this::toResource)
-                .collect(Collectors.toList());
+                .toList();
         return ResponseEntity.ok(resources);
     }
 
@@ -64,21 +65,22 @@ public class DetectedSpotsController {
                     content = @Content(schema = @Schema(implementation = DetectedSpotResource.class))),
             @ApiResponse(responseCode = "404", description = "Blueprint not found")
     })
-    public ResponseEntity<List<DetectedSpotResource>> getSpotsByBlueprintId(@PathVariable Long blueprintId) {
+    public ResponseEntity<List<DetectedSpotResource>> getSpotsByBlueprintId(@PathVariable String blueprintId) {
         var spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
         var resources = spots.stream()
                 .map(this::toResource)
-                .collect(Collectors.toList());
+                .toList();
         return ResponseEntity.ok(resources);
     }
 
     @PatchMapping("/{spotId}/status")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update spot status", description = "Updates the status of a detected parking spot.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Status updated successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid status value")
     })
-    public ResponseEntity<Void> updateSpotStatus(@PathVariable Long spotId, @RequestParam String status) {
+    public ResponseEntity<Void> updateSpotStatus(@PathVariable String spotId, @RequestParam String status) {
         var spotStatus = SpotStatus.fromDisplayName(status);
         var command = new UpdateSpotStatusCommand(spotId, spotStatus);
         var updatedSpotOptional = parkingCommandService.handle(command);
@@ -89,16 +91,17 @@ public class DetectedSpotsController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create a detected spot", description = "Creates a new detected parking spot on a blueprint.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Detected spot created successfully",
                     content = @Content(schema = @Schema(implementation = DetectedSpotResource.class))),
             @ApiResponse(responseCode = "400", description = "Invalid input")
     })
-    public ResponseEntity<DetectedSpotResource> createDetectedSpot(@RequestBody CreateDetectedSpotResource resource) {
+    public ResponseEntity<DetectedSpotResource> createDetectedSpot(@Valid @RequestBody CreateDetectedSpotResource resource) {
         var status = SpotStatus.fromDisplayName(resource.status());
         var command = new com.axiora.spotgo.parking.domain.model.commands.CreateDetectedSpotCommand(
-                resource.localId(), resource.blueprintId(), resource.parkingId(),
+                resource.code(), resource.blueprintId(), resource.parkingId(),
                 resource.row(), resource.col(),
                 resource.xPct(), resource.yPct(), resource.wPct(), resource.hPct(),
                 status);
@@ -113,7 +116,7 @@ public class DetectedSpotsController {
     private DetectedSpotResource toResource(DetectedSpot spot) {
         return new DetectedSpotResource(
                 spot.getId(),
-                spot.getLocalId(),
+                spot.getCode(),
                 spot.getBlueprintId(),
                 spot.getParkingId(),
                 spot.getRow(),

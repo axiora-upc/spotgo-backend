@@ -11,6 +11,7 @@ import com.axiora.spotgo.parking.application.internal.queryservices.ParkingQuery
 import com.axiora.spotgo.parking.interfaces.rest.resources.ClientReportResource;
 import com.axiora.spotgo.parking.interfaces.rest.resources.CreateClientReportResource;
 import com.axiora.spotgo.parking.interfaces.rest.resources.UpdateClientReportStatusResource;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,10 +20,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/clientReports")
@@ -38,13 +39,14 @@ public class ClientReportsController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('CLIENT')")
     @Operation(summary = "Create a client report", description = "Submits a new report from a client about a past reservation.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Report created successfully",
                     content = @Content(schema = @Schema(implementation = ClientReportResource.class))),
             @ApiResponse(responseCode = "400", description = "Invalid input")
     })
-    public ResponseEntity<ClientReportResource> createClientReport(@RequestBody CreateClientReportResource resource) {
+    public ResponseEntity<ClientReportResource> createClientReport(@Valid @RequestBody CreateClientReportResource resource) {
         var command = new CreateClientReportCommand(
                 resource.clientId(),
                 resource.parkingId(),
@@ -67,7 +69,7 @@ public class ClientReportsController {
         var reports = parkingQueryService.handle(new GetAllClientReportsQuery());
         var resources = reports.stream()
                 .map(this::toResource)
-                .collect(Collectors.toList());
+                .toList();
         return ResponseEntity.ok(resources);
     }
 
@@ -79,8 +81,8 @@ public class ClientReportsController {
             @ApiResponse(responseCode = "400", description = "Invalid status value or report not found")
     })
     public ResponseEntity<ClientReportResource> updateClientReportStatus(
-            @PathVariable Long reportId,
-            @RequestBody UpdateClientReportStatusResource resource) {
+            @PathVariable String reportId,
+            @Valid @RequestBody UpdateClientReportStatusResource resource) {
         var command = new UpdateClientReportStatusCommand(reportId, ReportStatus.fromDisplayName(resource.status()));
         var reportOptional = parkingCommandService.handle(command);
         if (reportOptional.isEmpty()) {
@@ -92,11 +94,12 @@ public class ClientReportsController {
     private ClientReportResource toResource(ClientReport report) {
         return new ClientReportResource(
                 report.getId(),
+                report.getCode(),
                 report.getClientId(),
                 report.getParkingId(),
                 report.getReservationId(),
                 report.getType().getDisplayName(),
-                report.getDate(),
+                report.getDate().toString(),
                 report.getStatus().getDisplayName()
         );
     }

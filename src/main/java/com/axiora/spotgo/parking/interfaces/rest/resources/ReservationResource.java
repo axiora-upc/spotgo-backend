@@ -7,13 +7,13 @@ import java.time.LocalDateTime;
 
 public record ReservationResource(
         @Schema(description = "Unique identifier of the reservation", example = "1")
-        Long id,
+        String id,
 
         @Schema(description = "Client identifier", example = "3")
-        Long clientId,
+        String clientId,
 
         @Schema(description = "Parking identifier", example = "1")
-        Long parkingId,
+        String parkingId,
 
         @Schema(description = "Reservation code", example = "SPG-A1B2C3")
         String code,

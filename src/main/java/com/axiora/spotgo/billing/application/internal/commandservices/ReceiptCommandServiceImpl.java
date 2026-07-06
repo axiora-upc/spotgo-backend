@@ -8,8 +8,10 @@ import com.axiora.spotgo.billing.domain.repositories.ReceiptRepository;
 import com.axiora.spotgo.shared.application.result.ApplicationError;
 import com.axiora.spotgo.shared.application.result.Result;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class ReceiptCommandServiceImpl implements ReceiptCommandService {
 
     private final ReceiptRepository receiptRepository;

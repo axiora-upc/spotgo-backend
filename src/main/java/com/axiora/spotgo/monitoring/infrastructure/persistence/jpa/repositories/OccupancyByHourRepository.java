@@ -7,6 +7,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface OccupancyByHourRepository extends JpaRepository<OccupancyByHour, Long> {
-    List<OccupancyByHour> findByParkingId(Long parkingId);
+public interface OccupancyByHourRepository extends JpaRepository<OccupancyByHour, String> {
+    List<OccupancyByHour> findByParkingId(String parkingId);
 }

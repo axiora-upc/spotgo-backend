@@ -2,19 +2,15 @@ package com.axiora.spotgo.parking.domain.model.aggregates;
 
 import jakarta.persistence.*;
 import lombok.Getter;
-import org.springframework.data.domain.AbstractAggregateRoot;
+import com.axiora.spotgo.shared.infrastructure.persistence.jpa.entities.UuidIdentifiedAggregateRoot;
 
 @Entity
 @Table(name = "parkings")
 @Getter
-public class Parking extends AbstractAggregateRoot<Parking> {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Parking extends UuidIdentifiedAggregateRoot<Parking> {
 
     @Column(name = "adminId")
-    private Long adminId;
+    private String adminId;
 
     @Column(nullable = false)
     private String name;
@@ -67,7 +63,7 @@ public class Parking extends AbstractAggregateRoot<Parking> {
     public Parking() {
     }
 
-    public Parking(Long adminId, String name, String address, String city,
+    public Parking(String adminId, String name, String address, String city,
                    Integer totalSpaces, Integer availableSpaces, Integer totalFloors,
                    Double averageOccupancy, Double occupancyTrendPercent, String peakHour,
                    Double totalRevenue, String systemStatus, Double rating, Double pricePerHour,
@@ -93,5 +89,12 @@ public class Parking extends AbstractAggregateRoot<Parking> {
 
     public void updateRating(Double rating) {
         this.rating = rating;
+    }
+
+    public void updateStats(Integer totalSpaces, Integer availableSpaces, Integer totalFloors, Double rating) {
+        if (totalSpaces != null) this.totalSpaces = totalSpaces;
+        if (availableSpaces != null) this.availableSpaces = availableSpaces;
+        if (totalFloors != null) this.totalFloors = totalFloors;
+        if (rating != null) this.rating = rating;
     }
 }

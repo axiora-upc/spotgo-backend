@@ -9,6 +9,7 @@ import com.axiora.spotgo.parking.application.internal.commandservices.ParkingCom
 import com.axiora.spotgo.parking.application.internal.queryservices.ParkingQueryService;
 import com.axiora.spotgo.parking.interfaces.rest.resources.BlueprintResource;
 import com.axiora.spotgo.parking.interfaces.rest.resources.CreateBlueprintResource;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,10 +18,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/blueprints")
@@ -36,13 +37,14 @@ public class BlueprintsController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create a blueprint", description = "Creates a new blueprint (map) for a parking facility.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Blueprint created successfully",
                     content = @Content(schema = @Schema(implementation = BlueprintResource.class))),
             @ApiResponse(responseCode = "400", description = "Invalid input")
     })
-    public ResponseEntity<BlueprintResource> createBlueprint(@RequestBody CreateBlueprintResource resource) {
+    public ResponseEntity<BlueprintResource> createBlueprint(@Valid @RequestBody CreateBlueprintResource resource) {
         var command = new CreateBlueprintCommand(resource.adminId(), resource.parkingId(), resource.name(), resource.dataUrl());
         var blueprintOptional = parkingCommandService.handle(command);
         if (blueprintOptional.isEmpty()) {
@@ -58,7 +60,7 @@ public class BlueprintsController {
     @Operation(summary = "Get all blueprints", description = "Returns a list of blueprints, optionally filtered by parking ID.")
     @ApiResponse(responseCode = "200", description = "List of blueprints returned",
             content = @Content(schema = @Schema(implementation = BlueprintResource.class)))
-    public ResponseEntity<List<BlueprintResource>> getAllBlueprints(@RequestParam(required = false) Long parkingId) {
+    public ResponseEntity<List<BlueprintResource>> getAllBlueprints(@RequestParam(required = false) String parkingId) {
         List<Blueprint> blueprints;
         if (parkingId != null) {
             blueprints = parkingQueryService.handle(new GetBlueprintsByParkingIdQuery(parkingId));
@@ -67,7 +69,7 @@ public class BlueprintsController {
         }
         var resources = blueprints.stream()
                 .map(this::toResource)
-                .collect(Collectors.toList());
+                .toList();
         return ResponseEntity.ok(resources);
     }
 
@@ -78,21 +80,22 @@ public class BlueprintsController {
                     content = @Content(schema = @Schema(implementation = BlueprintResource.class))),
             @ApiResponse(responseCode = "404", description = "Parking not found")
     })
-    public ResponseEntity<List<BlueprintResource>> getBlueprintsByParkingId(@PathVariable Long parkingId) {
+    public ResponseEntity<List<BlueprintResource>> getBlueprintsByParkingId(@PathVariable String parkingId) {
         var blueprints = parkingQueryService.handle(new GetBlueprintsByParkingIdQuery(parkingId));
         var resources = blueprints.stream()
                 .map(this::toResource)
-                .collect(Collectors.toList());
+                .toList();
         return ResponseEntity.ok(resources);
     }
 
     @DeleteMapping("/{blueprintId}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Delete a blueprint", description = "Deletes a blueprint by its ID.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Blueprint deleted successfully"),
             @ApiResponse(responseCode = "404", description = "Blueprint not found")
     })
-    public ResponseEntity<Void> deleteBlueprint(@PathVariable Long blueprintId) {
+    public ResponseEntity<Void> deleteBlueprint(@PathVariable String blueprintId) {
         parkingCommandService.handle(new DeleteBlueprintCommand(blueprintId));
         return ResponseEntity.noContent().build();
     }

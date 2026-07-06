@@ -1,21 +1,30 @@
 package com.axiora.spotgo.parking.interfaces.rest.resources;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 public record CreateParkingResource(
         @Schema(description = "Administrator identifier", example = "1")
-        Long adminId,
+        @NotBlank
+        String adminId,
 
         @Schema(description = "Parking name", example = "Parking Central Lima")
+        @NotBlank
         String name,
 
         @Schema(description = "Parking address", example = "Av. Javier Prado Este 123, San Isidro")
+        @NotBlank
         String address,
 
         @Schema(description = "City where the parking is located", example = "Lima")
+        @NotBlank
         String city,
 
         @Schema(description = "Total number of spaces", example = "28")
+        @NotNull
+        @Positive
         Integer totalSpaces,
 
         @Schema(description = "Currently available spaces", example = "28")

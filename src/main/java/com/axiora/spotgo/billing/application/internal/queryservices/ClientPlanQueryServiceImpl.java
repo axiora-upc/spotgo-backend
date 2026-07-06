@@ -6,11 +6,13 @@ import com.axiora.spotgo.billing.domain.model.queries.GetAllClientPlansQuery;
 import com.axiora.spotgo.billing.domain.model.queries.GetClientPlanByIdQuery;
 import com.axiora.spotgo.billing.domain.repositories.ClientPlanRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
 @Service
+@Transactional(readOnly = true)
 public class ClientPlanQueryServiceImpl implements ClientPlanQueryService {
 
     private final ClientPlanRepository clientPlanRepository;

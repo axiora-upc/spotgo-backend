@@ -2,16 +2,20 @@ package com.axiora.spotgo.parking.interfaces.rest.resources;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 public record CreateDetectedSpotResource(
-        @Schema(description = "Local identifier within the blueprint", example = "5")
-        Integer localId,
+        @Schema(description = "Spot code shown in the frontend", example = "63")
+        Integer code,
 
         @Schema(description = "Blueprint identifier this spot belongs to", example = "1")
-        Long blueprintId,
+        @NotBlank
+        String blueprintId,
 
         @Schema(description = "Parking identifier", example = "1")
-        Long parkingId,
+        @NotBlank
+        String parkingId,
 
         @Schema(description = "Row position on the blueprint grid", example = "0")
         Integer row,
@@ -33,5 +37,6 @@ public record CreateDetectedSpotResource(
 
         @Schema(description = "Spot status", example = "available",
                 allowableValues = {"available", "occupied", "reserved", "maintenance"})
+        @NotBlank
         String status
 ) {}

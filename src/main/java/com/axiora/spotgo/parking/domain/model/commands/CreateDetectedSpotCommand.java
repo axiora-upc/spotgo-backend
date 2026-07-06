@@ -4,8 +4,8 @@ import com.axiora.spotgo.parking.domain.model.valueobjects.SpotStatus;
 
 public record CreateDetectedSpotCommand(
         Integer localId,
-        Long blueprintId,
-        Long parkingId,
+        String blueprintId,
+        String parkingId,
         Integer row,
         Integer col,
         Double xPct,

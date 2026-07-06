@@ -7,11 +7,11 @@ import jakarta.validation.constraints.NotNull;
 public record CreateSubscriptionResource(
         @NotNull(message = "{validation.not-null}")
         @Schema(description = "Client identifier", example = "1")
-        Long clientId,
+        String clientId,
 
         @NotNull(message = "{validation.not-null}")
         @Schema(description = "Plan identifier", example = "2")
-        Long planId,
+        String planId,
 
         @NotBlank(message = "{validation.not-blank}")
         @Schema(description = "Next renewal date", example = "2026-07-16")

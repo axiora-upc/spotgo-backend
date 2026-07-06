@@ -3,8 +3,8 @@ package com.axiora.spotgo.parking.domain.model.commands;
 import java.time.LocalDateTime;
 
 public record ReserveSpotCommand(
-        Long clientId,
-        Long parkingId,
+        String clientId,
+        String parkingId,
         String code,
         String spot,
         LocalDateTime startDate,

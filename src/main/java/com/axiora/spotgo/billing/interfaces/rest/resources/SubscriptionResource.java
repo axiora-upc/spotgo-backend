@@ -4,13 +4,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public record SubscriptionResource(
         @Schema(description = "Unique identifier", example = "1")
-        Long id,
+        String id,
 
         @Schema(description = "Client identifier", example = "1")
-        Long clientId,
+        String clientId,
 
         @Schema(description = "Plan identifier", example = "2")
-        Long planId,
+        String planId,
 
         @Schema(description = "Subscription status: ACTIVE, INACTIVE or CANCELLED", example = "ACTIVE")
         String status,

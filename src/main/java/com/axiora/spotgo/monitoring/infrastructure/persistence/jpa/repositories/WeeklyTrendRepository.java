@@ -7,6 +7,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface WeeklyTrendRepository extends JpaRepository<WeeklyTrend, Long> {
-    List<WeeklyTrend> findByParkingId(Long parkingId);
+public interface WeeklyTrendRepository extends JpaRepository<WeeklyTrend, String> {
+    List<WeeklyTrend> findByParkingId(String parkingId);
 }

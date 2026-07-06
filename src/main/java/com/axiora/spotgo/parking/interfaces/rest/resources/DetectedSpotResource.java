@@ -5,16 +5,16 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public record DetectedSpotResource(
         @Schema(description = "Unique identifier of the detected spot", example = "1")
-        Long id,
+        String id,
 
-        @Schema(description = "Local identifier within the blueprint", example = "5")
-        Integer localId,
+        @Schema(description = "Spot code shown in the frontend", example = "63")
+        Integer code,
 
         @Schema(description = "Blueprint identifier this spot belongs to", example = "1")
-        Long blueprintId,
+        String blueprintId,
 
         @Schema(description = "Parking identifier", example = "1")
-        Long parkingId,
+        String parkingId,
 
         @Schema(description = "Row position on the blueprint grid", example = "0")
         Integer row,

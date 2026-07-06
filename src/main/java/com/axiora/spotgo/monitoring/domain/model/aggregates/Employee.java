@@ -2,21 +2,17 @@ package com.axiora.spotgo.monitoring.domain.model.aggregates;
 
 import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeRole;
 import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeStatus;
+import com.axiora.spotgo.shared.infrastructure.persistence.jpa.entities.UuidIdentifiedAggregateRoot;
 import jakarta.persistence.*;
 import lombok.Getter;
-import org.springframework.data.domain.AbstractAggregateRoot;
 
 @Entity
 @Table(name = "employees")
 @Getter
-public class Employee extends AbstractAggregateRoot<Employee> {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Employee extends UuidIdentifiedAggregateRoot<Employee> {
 
     @Column(name = "parkingId")
-    private Long parkingId;
+    private String parkingId;
 
     @Column(nullable = false)
     private String firstName;
@@ -44,7 +40,7 @@ public class Employee extends AbstractAggregateRoot<Employee> {
     public Employee() {
     }
 
-    public Employee(Long parkingId, String firstName, String lastName, EmployeeRole role,
+    public Employee(String parkingId, String firstName, String lastName, EmployeeRole role,
                     String schedule, String shiftStart, String shiftEnd, EmployeeStatus status) {
         this.parkingId = parkingId;
         this.firstName = firstName;

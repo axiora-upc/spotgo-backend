@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Positive;
 public record CreateReceiptResource(
         @NotNull(message = "{validation.not-null}")
         @Schema(description = "Client identifier", example = "1")
-        Long clientId,
+        String clientId,
 
         @NotBlank(message = "{validation.not-blank}")
         @Schema(description = "Invoice number", example = "INV-2026-0412")

@@ -2,19 +2,15 @@ package com.axiora.spotgo.monitoring.domain.model.aggregates;
 
 import jakarta.persistence.*;
 import lombok.Getter;
-import org.springframework.data.domain.AbstractAggregateRoot;
+import com.axiora.spotgo.shared.infrastructure.persistence.jpa.entities.UuidIdentifiedAggregateRoot;
 
 @Entity
 @Table(name = "weeklyTrends")
 @Getter
-public class WeeklyTrend extends AbstractAggregateRoot<WeeklyTrend> {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class WeeklyTrend extends UuidIdentifiedAggregateRoot<WeeklyTrend> {
 
     @Column(name = "parkingId", nullable = false)
-    private Long parkingId;
+    private String parkingId;
 
     @Column(nullable = false)
     private String day;
@@ -25,7 +21,7 @@ public class WeeklyTrend extends AbstractAggregateRoot<WeeklyTrend> {
     public WeeklyTrend() {
     }
 
-    public WeeklyTrend(Long parkingId, String day, Double value) {
+    public WeeklyTrend(String parkingId, String day, Double value) {
         this.parkingId = parkingId;
         this.day = day;
         this.value = value;

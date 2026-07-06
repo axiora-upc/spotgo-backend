@@ -5,10 +5,12 @@ import com.axiora.spotgo.parking.domain.model.commands.CreateParkingCommand;
 import com.axiora.spotgo.parking.domain.model.commands.ReserveSpotCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateSpotStatusCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateParkingRatingCommand;
+import com.axiora.spotgo.parking.domain.model.commands.UpdateParkingCommand;
 import com.axiora.spotgo.parking.domain.model.commands.CreateDetectedSpotCommand;
 import com.axiora.spotgo.parking.domain.model.commands.DeleteBlueprintCommand;
 import com.axiora.spotgo.parking.domain.model.commands.CreateClientReportCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateClientReportStatusCommand;
+import com.axiora.spotgo.parking.domain.model.commands.UpdateReservationCommand;
 import com.axiora.spotgo.parking.domain.model.aggregates.Blueprint;
 import com.axiora.spotgo.parking.domain.model.aggregates.Parking;
 import com.axiora.spotgo.parking.domain.model.aggregates.DetectedSpot;
@@ -27,4 +29,6 @@ public interface ParkingCommandService {
     void handle(DeleteBlueprintCommand command);
     Optional<ClientReport> handle(CreateClientReportCommand command);
     Optional<ClientReport> handle(UpdateClientReportStatusCommand command);
+    Optional<Parking> handle(UpdateParkingCommand command);
+    Optional<Reservation> handle(UpdateReservationCommand command);
 }
