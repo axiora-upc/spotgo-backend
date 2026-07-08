@@ -27,7 +27,7 @@ public class ClientPlanPersistenceEntity extends AuditableAbstractPersistenceEnt
     @Column(nullable = false)
     private Double discountPercent;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "clientPlanFeatures", joinColumns = @JoinColumn(name = "clientPlanId"))
     @Column(name = "feature")
     private List<String> features;

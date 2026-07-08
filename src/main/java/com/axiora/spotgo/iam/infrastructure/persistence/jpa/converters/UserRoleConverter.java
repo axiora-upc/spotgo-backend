@@ -9,7 +9,7 @@ public class UserRoleConverter implements AttributeConverter<UserRole, String> {
 
     @Override
     public String convertToDatabaseColumn(UserRole role) {
-        return role == null ? null : role.name();
+        return role == null ? null : role.name().toLowerCase();
     }
 
     @Override
