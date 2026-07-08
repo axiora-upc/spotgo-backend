@@ -32,6 +32,13 @@ public class ReceiptRepositoryImpl implements ReceiptRepository {
     }
 
     @Override
+    public List<Receipt> findAllByClientId(String clientId) {
+        return receiptPersistenceRepository.findAllByClientId(clientId).stream()
+                .map(ReceiptPersistenceAssembler::toDomainFromPersistence)
+                .toList();
+    }
+
+    @Override
     public List<Receipt> findAllByBookingCode(String bookingCode) {
         return receiptPersistenceRepository.findAllByBookingCode(bookingCode).stream()
                 .map(ReceiptPersistenceAssembler::toDomainFromPersistence)

@@ -8,7 +8,11 @@ import lombok.Getter;
 import java.time.Instant;
 
 @Entity
-@Table(name = "clientReports")
+@Table(name = "clientReports", indexes = {
+    @Index(name = "idx_clientReport_clientId", columnList = "clientId"),
+    @Index(name = "idx_clientReport_parkingId", columnList = "parkingId"),
+    @Index(name = "idx_clientReport_reservationId", columnList = "reservationId")
+})
 @Getter
 public class ClientReport extends UuidIdentifiedAggregateRoot<ClientReport> {
 

@@ -6,7 +6,10 @@ import jakarta.persistence.*;
 import lombok.Getter;
 
 @Entity
-@Table(name = "detectedSpots")
+@Table(name = "detectedSpots", indexes = {
+    @Index(name = "idx_detectedSpot_blueprintId", columnList = "blueprintId"),
+    @Index(name = "idx_detectedSpot_parkingId", columnList = "parkingId")
+})
 @Getter
 public class DetectedSpot extends UuidIdentifiedAggregateRoot<DetectedSpot> {
 

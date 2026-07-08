@@ -1,31 +1,35 @@
 package com.axiora.spotgo.parking.application.internal.commandservices;
 
+import com.axiora.spotgo.iam.infrastructure.persistence.jpa.repositories.UserAccountRepository;
+import com.axiora.spotgo.parking.application.ParkingOccupancyService;
 import com.axiora.spotgo.parking.domain.model.aggregates.Blueprint;
+import com.axiora.spotgo.parking.domain.model.aggregates.ClientReport;
 import com.axiora.spotgo.parking.domain.model.aggregates.DetectedSpot;
 import com.axiora.spotgo.parking.domain.model.aggregates.Parking;
 import com.axiora.spotgo.parking.domain.model.aggregates.Reservation;
-import com.axiora.spotgo.parking.domain.model.aggregates.ClientReport;
 import com.axiora.spotgo.parking.domain.model.commands.CreateBlueprintCommand;
+import com.axiora.spotgo.parking.domain.model.commands.CreateClientReportCommand;
+import com.axiora.spotgo.parking.domain.model.commands.CreateDetectedSpotCommand;
 import com.axiora.spotgo.parking.domain.model.commands.CreateParkingCommand;
+import com.axiora.spotgo.parking.domain.model.commands.DeleteBlueprintCommand;
 import com.axiora.spotgo.parking.domain.model.commands.ReserveSpotCommand;
-import com.axiora.spotgo.parking.domain.model.commands.UpdateSpotStatusCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateParkingRatingCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateParkingCommand;
-import com.axiora.spotgo.parking.domain.model.commands.CreateDetectedSpotCommand;
-import com.axiora.spotgo.parking.domain.model.commands.DeleteBlueprintCommand;
-import com.axiora.spotgo.parking.domain.model.commands.CreateClientReportCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateClientReportStatusCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateReservationCommand;
-import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.BlueprintRepository;
+import com.axiora.spotgo.parking.domain.model.commands.UpdateSpotStatusCommand;
+import com.axiora.spotgo.parking.domain.model.valueobjects.ReservationStatus;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.DetectedSpotRepository;
+import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.BlueprintRepository;
+import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ClientReportRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ParkingRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ReservationRepository;
-import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ClientReportRepository;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.util.Optional;
 
 @Service
 @Transactional
@@ -36,13 +40,17 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
     private final DetectedSpotRepository detectedSpotRepository;
     private final ReservationRepository reservationRepository;
     private final ClientReportRepository clientReportRepository;
+    private final UserAccountRepository userAccountRepository;
+    private final ParkingOccupancyService parkingOccupancyService;
 
-    public ParkingCommandServiceImpl(ParkingRepository parkingRepository, BlueprintRepository blueprintRepository, DetectedSpotRepository detectedSpotRepository, ReservationRepository reservationRepository, ClientReportRepository clientReportRepository) {
+    public ParkingCommandServiceImpl(ParkingRepository parkingRepository, BlueprintRepository blueprintRepository, DetectedSpotRepository detectedSpotRepository, ReservationRepository reservationRepository, ClientReportRepository clientReportRepository, UserAccountRepository userAccountRepository, ParkingOccupancyService parkingOccupancyService) {
         this.parkingRepository = parkingRepository;
         this.blueprintRepository = blueprintRepository;
         this.detectedSpotRepository = detectedSpotRepository;
         this.reservationRepository = reservationRepository;
         this.clientReportRepository = clientReportRepository;
+        this.userAccountRepository = userAccountRepository;
+        this.parkingOccupancyService = parkingOccupancyService;
     }
 
     @Override
@@ -76,11 +84,14 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
 
     @Override
     public Optional<Reservation> handle(ReserveSpotCommand command) {
+        validateReservation(command.clientId(), command.parkingId(), command.spot(), command.startDate(), command.endDate(), null);
         var reservation = new Reservation(
                 command.clientId(), command.parkingId(), command.code(), command.spot(),
                 command.startDate(), command.endDate(),
                 command.amount(), command.baseAmount(), command.rating());
-        return Optional.of(reservationRepository.save(reservation));
+        var savedReservation = reservationRepository.save(reservation);
+        parkingOccupancyService.reconcileParking(command.parkingId(), LocalDateTime.now());
+        return Optional.of(savedReservation);
     }
 
     @Override
@@ -114,13 +125,14 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
 
     @Override
     public Optional<ClientReport> handle(CreateClientReportCommand command) {
-        var nextCode = clientReportRepository.findTopByOrderByCodeDesc()
-                .map(ClientReport::getCode)
-                .map(this::incrementReportCode)
-                .orElse("RPT-00001");
+        var reservation = reservationRepository.findById(command.reservationId())
+                .orElseThrow(() -> new IllegalArgumentException("Reservation does not exist"));
+        if (!reservation.getClientId().equals(command.clientId()) || !reservation.getParkingId().equals(command.parkingId())) {
+            throw new IllegalArgumentException("Report does not match reservation ownership");
+        }
         var report = new ClientReport(
                 command.clientId(), command.parkingId(), command.reservationId(),
-                nextCode, command.type(), parseDateTime(command.date()));
+                generateReportCode(), command.type(), parseDateTime(command.date()));
         return Optional.of(clientReportRepository.save(report));
     }
 
@@ -151,14 +163,49 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
             return Optional.empty();
         }
         var reservation = reservationOpt.get();
+        validateReservation(
+                reservation.getClientId(),
+                reservation.getParkingId(),
+                reservation.getSpot(),
+                reservation.getStartDate(),
+                command.endDate() == null ? reservation.getEndDate() : command.endDate(),
+                reservation.getId());
         reservation.updateDetails(command.endDate(), command.amount(), command.baseAmount(), command.rating(), command.status());
-        return Optional.of(reservationRepository.save(reservation));
+        var savedReservation = reservationRepository.save(reservation);
+        parkingOccupancyService.reconcileParking(reservation.getParkingId(), LocalDateTime.now());
+        return Optional.of(savedReservation);
     }
 
-    private String incrementReportCode(String currentCode) {
-        var numericPortion = currentCode.replace("RPT-", "");
-        var next = Integer.parseInt(numericPortion) + 1;
-        return "RPT-%05d".formatted(next);
+    private void validateReservation(String clientId, String parkingId, String spot, LocalDateTime startDate, LocalDateTime endDate, String reservationIdToIgnore) {
+        if (!userAccountRepository.existsById(clientId)) {
+            throw new IllegalArgumentException("Client does not exist");
+        }
+        if (!parkingRepository.existsById(parkingId)) {
+            throw new IllegalArgumentException("Parking does not exist");
+        }
+        if (startDate == null || endDate == null || !endDate.isAfter(startDate)) {
+            throw new IllegalArgumentException("Reservation time range is invalid");
+        }
+
+        var conflictingReservation = reservationRepository.findByParkingIdAndSpot(parkingId, spot).stream()
+                .filter(existing -> reservationIdToIgnore == null || !existing.getId().equals(reservationIdToIgnore))
+                .filter(existing -> existing.getStatus() != ReservationStatus.CANCELLED)
+                .anyMatch(existing -> overlaps(startDate, endDate, existing.getStartDate(), existing.getEndDate()));
+        if (conflictingReservation) {
+            throw new IllegalArgumentException("Spot is not available for the selected time range");
+        }
+    }
+
+    private boolean overlaps(LocalDateTime startDate, LocalDateTime endDate, LocalDateTime otherStartDate, LocalDateTime otherEndDate) {
+        return startDate.isBefore(otherEndDate) && endDate.isAfter(otherStartDate);
+    }
+
+    private String generateReportCode() {
+        String code;
+        do {
+            code = "RPT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        } while (clientReportRepository.existsByCode(code));
+        return code;
     }
 
     private Instant parseDateTime(String value) {

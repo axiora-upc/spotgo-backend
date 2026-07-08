@@ -17,9 +17,12 @@ public enum ReportType {
     }
 
     public static ReportType fromDisplayName(String displayName) {
+        if (displayName == null) {
+            throw new IllegalArgumentException("Display name cannot be null");
+        }
         for (ReportType t : values()) {
             if (t.displayName.equals(displayName)) return t;
         }
-        return OTHER;
+        throw new IllegalArgumentException("Invalid ReportType: " + displayName);
     }
 }

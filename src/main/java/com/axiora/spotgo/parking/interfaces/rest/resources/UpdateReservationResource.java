@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 public record UpdateReservationResource(
         @Schema(description = "Updated reservation end date and time")
-        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
         LocalDateTime endDate,
         @Schema(description = "Updated total amount", example = "12.5")
         Double amount,

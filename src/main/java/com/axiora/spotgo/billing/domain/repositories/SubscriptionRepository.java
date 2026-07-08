@@ -11,5 +11,7 @@ public interface SubscriptionRepository {
 
     List<Subscription> findAll();
 
+    List<Subscription> findAllByClientId(String clientId);
+
     Subscription save(Subscription subscription);
 }

@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -50,6 +51,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 
+@Profile({"dev", "local"})
 @Component
 public class DbSeeder implements CommandLineRunner {
 
@@ -178,7 +180,7 @@ public class DbSeeder implements CommandLineRunner {
                     passwordEncoder.encode(node.path("password").asText("Password123!")),
                     nullableText(node, "phone") == null ? "" : nullableText(node, "phone"),
                     nullableText(node, "city") == null ? "" : nullableText(node, "city"),
-                    UserRole.valueOf(node.path("role").asText("client"))
+                    UserRole.fromDisplayName(node.path("role").asText("client"))
             );
             user.setId(node.get("id").asText());
             userAccountRepository.save(user);

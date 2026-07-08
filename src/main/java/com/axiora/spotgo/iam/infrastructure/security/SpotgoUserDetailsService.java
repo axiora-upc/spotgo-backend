@@ -1,8 +1,6 @@
 package com.axiora.spotgo.iam.infrastructure.security;
 
 import com.axiora.spotgo.iam.infrastructure.persistence.jpa.repositories.UserAccountRepository;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -22,10 +20,6 @@ public class SpotgoUserDetailsService implements UserDetailsService {
         var normalizedEmail = email == null ? null : email.trim().toLowerCase();
         var user = userAccountRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-        return new User(
-                user.getEmail(),
-                user.getPasswordHash(),
-                java.util.List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name().toUpperCase()))
-        );
+        return new SpotgoUserPrincipal(user.getId(), user.getEmail(), user.getPasswordHash(), user.getRole());
     }
 }

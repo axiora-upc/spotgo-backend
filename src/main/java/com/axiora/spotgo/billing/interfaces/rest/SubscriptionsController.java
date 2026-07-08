@@ -2,14 +2,15 @@ package com.axiora.spotgo.billing.interfaces.rest;
 
 import com.axiora.spotgo.billing.application.commandservices.SubscriptionCommandService;
 import com.axiora.spotgo.billing.application.queryservices.SubscriptionQueryService;
-import com.axiora.spotgo.billing.domain.model.queries.GetAllSubscriptionsQuery;
-import com.axiora.spotgo.billing.domain.model.queries.GetSubscriptionByIdQuery;
+import com.axiora.spotgo.billing.domain.model.commands.CreateSubscriptionCommand;
 import com.axiora.spotgo.billing.domain.model.commands.PatchSubscriptionSavingsCommand;
+import com.axiora.spotgo.billing.domain.repositories.SubscriptionRepository;
+import com.axiora.spotgo.iam.infrastructure.security.SpotgoUserPrincipal;
+import com.axiora.spotgo.billing.domain.model.queries.GetSubscriptionByIdQuery;
 import com.axiora.spotgo.billing.interfaces.rest.resources.CreateSubscriptionResource;
 import com.axiora.spotgo.billing.interfaces.rest.resources.PatchSubscriptionSavingsResource;
 import com.axiora.spotgo.billing.interfaces.rest.resources.SubscriptionResource;
 import com.axiora.spotgo.billing.interfaces.rest.resources.UpdateSubscriptionResource;
-import com.axiora.spotgo.billing.interfaces.rest.transform.CreateSubscriptionCommandFromResourceAssembler;
 import com.axiora.spotgo.billing.interfaces.rest.transform.SubscriptionResourceFromEntityAssembler;
 import com.axiora.spotgo.billing.interfaces.rest.transform.UpdateSubscriptionCommandFromResourceAssembler;
 import com.axiora.spotgo.shared.application.result.ApplicationError;
@@ -26,12 +27,10 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import static org.springframework.web.bind.annotation.RequestMethod.PATCH;
-
-import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -42,11 +41,14 @@ public class SubscriptionsController {
 
     private final SubscriptionCommandService subscriptionCommandService;
     private final SubscriptionQueryService subscriptionQueryService;
+    private final SubscriptionRepository subscriptionRepository;
 
     public SubscriptionsController(SubscriptionCommandService subscriptionCommandService,
-                                   SubscriptionQueryService subscriptionQueryService) {
+                                   SubscriptionQueryService subscriptionQueryService,
+                                   SubscriptionRepository subscriptionRepository) {
         this.subscriptionCommandService = subscriptionCommandService;
         this.subscriptionQueryService = subscriptionQueryService;
+        this.subscriptionRepository = subscriptionRepository;
     }
 
     @PostMapping
@@ -56,8 +58,17 @@ public class SubscriptionsController {
                     content = @Content(schema = @Schema(implementation = SubscriptionResource.class))),
             @ApiResponse(responseCode = "400", description = "Invalid input data")
     })
-    public ResponseEntity<?> createSubscription(@Valid @RequestBody CreateSubscriptionResource resource) {
-        var command = CreateSubscriptionCommandFromResourceAssembler.toCommandFromResource(resource);
+    public ResponseEntity<?> createSubscription(@AuthenticationPrincipal SpotgoUserPrincipal principal,
+                                                @Valid @RequestBody CreateSubscriptionResource resource) {
+        var command = new CreateSubscriptionCommand(
+                principal.getUserId(),
+                resource.planId(),
+                resource.renewsOn(),
+                resource.pricePerMonth(),
+                resource.memberSince(),
+                resource.autoRenewal(),
+                resource.paymentMethodLastFour(),
+                resource.paymentMethodExpiry());
         var result = subscriptionCommandService.handle(command);
         return ResponseEntityAssembler.toResponseEntityFromResult(
                 result,
@@ -72,10 +83,10 @@ public class SubscriptionsController {
             @ApiResponse(responseCode = "200", description = "Subscriptions retrieved successfully",
                     content = @Content(schema = @Schema(implementation = SubscriptionResource.class)))
     })
-    public ResponseEntity<List<SubscriptionResource>> getAllSubscriptions() {
-        var subscriptions = subscriptionQueryService.handle(new GetAllSubscriptionsQuery());
+    public ResponseEntity<List<SubscriptionResource>> getAllSubscriptions(@AuthenticationPrincipal SpotgoUserPrincipal principal) {
+        var subscriptions = subscriptionRepository.findAllByClientId(principal.getUserId());
         if (subscriptions.isEmpty()) {
-            return ResponseEntity.ok(Collections.emptyList());
+            return ResponseEntity.ok(List.of());
         }
         var resources = subscriptions.stream()
                 .map(SubscriptionResourceFromEntityAssembler::toResourceFromEntity)
@@ -91,6 +102,7 @@ public class SubscriptionsController {
             @ApiResponse(responseCode = "404", description = "Subscription not found")
     })
     public ResponseEntity<?> getSubscriptionById(
+            @AuthenticationPrincipal SpotgoUserPrincipal principal,
             @PathVariable
             @Parameter(description = "Subscription unique identifier", example = "1", required = true)
             String subscriptionId
@@ -98,8 +110,11 @@ public class SubscriptionsController {
         var query = new GetSubscriptionByIdQuery(subscriptionId);
         var subscription = subscriptionQueryService.handle(query);
         if (subscription.isEmpty()) {
-            var error = ApplicationError.notFound("Subscription", "Subscription with ID %d not found".formatted(subscriptionId));
+            var error = ApplicationError.notFound("Subscription", "Subscription with ID %s not found".formatted(subscriptionId));
             return ErrorResponseAssembler.toErrorResponseFromApplicationError(error);
+        }
+        if (!principal.getUserId().equals(subscription.get().getClientId())) {
+            throw new AccessDeniedException("Subscription is outside authenticated scope");
         }
         return ResponseEntity.ok(SubscriptionResourceFromEntityAssembler.toResourceFromEntity(subscription.get()));
     }
@@ -114,11 +129,13 @@ public class SubscriptionsController {
             @ApiResponse(responseCode = "404", description = "Subscription not found")
     })
     public ResponseEntity<?> updateSubscription(
+            @AuthenticationPrincipal SpotgoUserPrincipal principal,
             @PathVariable
             @Parameter(description = "Subscription unique identifier", example = "1", required = true)
             String subscriptionId,
             @Valid @RequestBody UpdateSubscriptionResource resource
     ) {
+        requireSubscriptionOwner(principal, subscriptionId);
         var command = UpdateSubscriptionCommandFromResourceAssembler.toCommandFromResource(subscriptionId, resource);
         var result = subscriptionCommandService.handle(command);
         return ResponseEntityAssembler.toResponseEntityFromResult(
@@ -128,7 +145,33 @@ public class SubscriptionsController {
         );
     }
 
-    @RequestMapping(method = PATCH, value = "/{subscriptionId}")
+    @PatchMapping("/{subscriptionId}")
+    @Operation(summary = "Update a subscription (PATCH)",
+            description = "Partially updates a subscription. Used by the frontend for switching plans, toggling auto-renewal, or updating payment method.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Subscription updated successfully",
+                    content = @Content(schema = @Schema(implementation = SubscriptionResource.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid input data"),
+            @ApiResponse(responseCode = "404", description = "Subscription not found")
+    })
+    public ResponseEntity<?> patchSubscription(
+            @AuthenticationPrincipal SpotgoUserPrincipal principal,
+            @PathVariable
+            @Parameter(description = "Subscription unique identifier", example = "1", required = true)
+            String subscriptionId,
+            @Valid @RequestBody UpdateSubscriptionResource resource
+    ) {
+        requireSubscriptionOwner(principal, subscriptionId);
+        var command = UpdateSubscriptionCommandFromResourceAssembler.toCommandFromResource(subscriptionId, resource);
+        var result = subscriptionCommandService.handle(command);
+        return ResponseEntityAssembler.toResponseEntityFromResult(
+                result,
+                SubscriptionResourceFromEntityAssembler::toResourceFromEntity,
+                HttpStatus.OK
+        );
+    }
+
+    @PatchMapping("/{subscriptionId}/savings")
     @Operation(summary = "Patch subscription savings",
             description = "Partially updates savedThisMonth and savingsMonth of a subscription.")
     @ApiResponses(value = {
@@ -137,11 +180,13 @@ public class SubscriptionsController {
             @ApiResponse(responseCode = "404", description = "Subscription not found")
     })
     public ResponseEntity<?> patchSubscriptionSavings(
+            @AuthenticationPrincipal SpotgoUserPrincipal principal,
             @PathVariable
             @Parameter(description = "Subscription unique identifier", example = "1", required = true)
             String subscriptionId,
             @Valid @RequestBody PatchSubscriptionSavingsResource resource
     ) {
+        requireSubscriptionOwner(principal, subscriptionId);
         var command = new PatchSubscriptionSavingsCommand(
                 subscriptionId,
                 resource.savedThisMonth(),
@@ -153,5 +198,13 @@ public class SubscriptionsController {
                 SubscriptionResourceFromEntityAssembler::toResourceFromEntity,
                 HttpStatus.OK
         );
+    }
+
+    private void requireSubscriptionOwner(SpotgoUserPrincipal principal, String subscriptionId) {
+        var subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new AccessDeniedException("Subscription does not exist"));
+        if (!principal.getUserId().equals(subscription.getClientId())) {
+            throw new AccessDeniedException("Subscription is outside authenticated scope");
+        }
     }
 }

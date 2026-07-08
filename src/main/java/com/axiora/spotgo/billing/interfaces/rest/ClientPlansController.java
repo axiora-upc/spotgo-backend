@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -46,7 +45,7 @@ public class ClientPlansController {
     public ResponseEntity<List<ClientPlanResource>> getAllClientPlans() {
         var plans = clientPlanQueryService.handle(new GetAllClientPlansQuery());
         if (plans.isEmpty()) {
-            return ResponseEntity.ok(Collections.emptyList());
+            return ResponseEntity.ok(List.of());
         }
         var resources = plans.stream()
                 .map(ClientPlanResourceFromEntityAssembler::toResourceFromEntity)
@@ -69,7 +68,7 @@ public class ClientPlansController {
         var query = new GetClientPlanByIdQuery(clientPlanId);
         var plan = clientPlanQueryService.handle(query);
         if (plan.isEmpty()) {
-            var error = ApplicationError.notFound("ClientPlan", "ClientPlan with ID %d not found".formatted(clientPlanId));
+            var error = ApplicationError.notFound("ClientPlan", "ClientPlan with ID %s not found".formatted(clientPlanId));
             return ErrorResponseAssembler.toErrorResponseFromApplicationError(error);
         }
         return ResponseEntity.ok(ClientPlanResourceFromEntityAssembler.toResourceFromEntity(plan.get()));

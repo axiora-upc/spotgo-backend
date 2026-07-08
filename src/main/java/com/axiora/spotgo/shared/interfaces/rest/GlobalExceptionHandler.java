@@ -3,8 +3,12 @@ package com.axiora.spotgo.shared.interfaces.rest;
 import com.axiora.spotgo.shared.application.result.ApplicationError;
 import com.axiora.spotgo.shared.interfaces.rest.transform.ErrorResponseAssembler;
 import org.jspecify.annotations.NullMarked;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -15,6 +19,7 @@ import java.util.ResourceBundle;
 @RestControllerAdvice
 @NullMarked
 public class GlobalExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private static final String MESSAGES_BASENAME = "messages";
 
     private String resolveMessageOrDefault(String key, String defaultValue, Object... args){
@@ -69,6 +74,21 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles access denied exceptions thrown by Spring Security
+     * @param ex the access denied exception
+     * @return error response with FORBIDDEN status
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<?> handleAccessDeniedException(AccessDeniedException ex) {
+        log.warn("Access denied: {}", ex.getMessage());
+        var applicationError = ApplicationError.unexpected(
+                "access-denied",
+                "You do not have permission to perform this action.");
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError).getBody());
+    }
+
+    /**
      * Handles unexpected runtime exceptions not caught by specific handlers
      * Maps to a generic unexpected error response
      * @param ex the unhandled runtime exception
@@ -76,6 +96,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<?> handleRuntimeException(RuntimeException ex) {
+        log.error("Unhandled runtime exception: {}", ex.getMessage(), ex);
         var applicationError = ApplicationError.unexpected(
                 resolveMessageOrDefault("error.unexpected.context", "global-exception-handler"),
                 ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred.");
@@ -90,6 +111,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleException(Exception ex) {
+        log.error("Unhandled exception: {}", ex.getMessage(), ex);
         var applicationError = ApplicationError.unexpected(
                 resolveMessageOrDefault("error.unexpected.context", "global-exception-handler"),
                 ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred.");

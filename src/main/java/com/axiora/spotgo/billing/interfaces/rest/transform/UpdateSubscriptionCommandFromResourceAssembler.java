@@ -11,7 +11,7 @@ public class UpdateSubscriptionCommandFromResourceAssembler {
         return new UpdateSubscriptionCommand(
                 subscriptionId,
                 resource.planId(),
-                SubscriptionStatus.fromValue(resource.status()),
+                SubscriptionStatus.fromDisplayName(resource.status()),
                 resource.renewsOn(),
                 resource.pricePerMonth(),
                 resource.sessions(),

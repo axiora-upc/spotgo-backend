@@ -3,28 +3,31 @@ package com.axiora.spotgo.parking.interfaces.rest;
 import com.axiora.spotgo.parking.domain.model.aggregates.Reservation;
 import com.axiora.spotgo.parking.domain.model.commands.ReserveSpotCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateReservationCommand;
-import com.axiora.spotgo.parking.domain.model.valueobjects.ReservationStatus;
-import com.axiora.spotgo.parking.domain.model.queries.GetAllReservationsQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetReservationsByClientIdQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetReservationsByParkingIdQuery;
+import com.axiora.spotgo.parking.domain.model.valueobjects.ReservationStatus;
+import com.axiora.spotgo.iam.infrastructure.security.SpotgoUserPrincipal;
 import com.axiora.spotgo.parking.application.internal.commandservices.ParkingCommandService;
 import com.axiora.spotgo.parking.application.internal.queryservices.ParkingQueryService;
+import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ReservationRepository;
 import com.axiora.spotgo.parking.interfaces.rest.resources.CreateReservationResource;
 import com.axiora.spotgo.parking.interfaces.rest.resources.ReservationResource;
 import com.axiora.spotgo.parking.interfaces.rest.resources.UpdateReservationResource;
+import com.axiora.spotgo.shared.application.security.AuthorizationService;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/reservations")
@@ -33,9 +36,15 @@ public class ReservationsController {
 
     private final ParkingCommandService parkingCommandService;
     private final ParkingQueryService parkingQueryService;
-    public ReservationsController(ParkingCommandService parkingCommandService, ParkingQueryService parkingQueryService) {
+    private final ReservationRepository reservationRepository;
+    private final AuthorizationService authorizationService;
+
+    public ReservationsController(ParkingCommandService parkingCommandService, ParkingQueryService parkingQueryService,
+                                  ReservationRepository reservationRepository, AuthorizationService authorizationService) {
         this.parkingCommandService = parkingCommandService;
         this.parkingQueryService = parkingQueryService;
+        this.reservationRepository = reservationRepository;
+        this.authorizationService = authorizationService;
     }
 
     @PostMapping
@@ -46,9 +55,10 @@ public class ReservationsController {
                     content = @Content(schema = @Schema(implementation = ReservationResource.class))),
             @ApiResponse(responseCode = "400", description = "Invalid input")
     })
-    public ResponseEntity<ReservationResource> reserveSpot(@Valid @RequestBody CreateReservationResource resource) {
+    public ResponseEntity<ReservationResource> reserveSpot(@AuthenticationPrincipal SpotgoUserPrincipal principal,
+                                                           @Valid @RequestBody CreateReservationResource resource) {
         var command = new ReserveSpotCommand(
-                resource.clientId(),
+                principal.getUserId(),
                 resource.parkingId(),
                 resource.code(),
                 resource.spot(),
@@ -68,18 +78,25 @@ public class ReservationsController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','CLIENT')")
     @Operation(summary = "Get all reservations", description = "Returns a list of reservations, optionally filtered by parking ID.")
     @ApiResponse(responseCode = "200", description = "List of reservations returned",
             content = @Content(schema = @Schema(implementation = ReservationResource.class)))
-    public ResponseEntity<List<ReservationResource>> getAllReservations(@RequestParam(required = false) String parkingId,
-                                                                       @RequestParam(required = false) String clientId) {
+    public ResponseEntity<List<ReservationResource>> getAllReservations(@AuthenticationPrincipal SpotgoUserPrincipal principal,
+                                                                        @RequestParam(required = false) String parkingId,
+                                                                        @RequestParam(required = false) String clientId) {
         List<Reservation> reservations;
-        if (parkingId != null) {
-            reservations = parkingQueryService.handle(new GetReservationsByParkingIdQuery(parkingId));
-        } else if (clientId != null) {
-            reservations = parkingQueryService.handle(new GetReservationsByClientIdQuery(clientId));
+        if (authorizationService.isAdmin(principal)) {
+            var scopedParkingId = authorizationService.requireAdminParkingId(principal);
+            if (parkingId != null && !parkingId.equals(scopedParkingId)) {
+                throw new AccessDeniedException("Requested parking is outside authenticated scope");
+            }
+            reservations = parkingQueryService.handle(new GetReservationsByParkingIdQuery(scopedParkingId));
         } else {
-            reservations = parkingQueryService.handle(new GetAllReservationsQuery());
+            if (clientId != null && !clientId.equals(principal.getUserId())) {
+                throw new AccessDeniedException("Requested client is outside authenticated scope");
+            }
+            reservations = parkingQueryService.handle(new GetReservationsByClientIdQuery(principal.getUserId()));
         }
         var resources = reservations.stream()
                 .map(this::toResource)
@@ -88,9 +105,19 @@ public class ReservationsController {
     }
 
     @PatchMapping("/{reservationId}")
-    public ResponseEntity<ReservationResource> updateReservation(@PathVariable String reservationId,
+    @PreAuthorize("hasAnyRole('ADMIN','CLIENT')")
+    public ResponseEntity<ReservationResource> updateReservation(@AuthenticationPrincipal SpotgoUserPrincipal principal,
+                                                                 @PathVariable String reservationId,
                                                                  @RequestBody UpdateReservationResource resource) {
-        ReservationStatus status = resource.status() == null ? null : ReservationStatus.fromValue(resource.status());
+        var currentReservation = reservationRepository.findById(reservationId).orElse(null);
+        if (currentReservation == null) {
+            return ResponseEntity.notFound().build();
+        }
+        authorizationService.requireReservationAccess(principal, currentReservation);
+        if (authorizationService.isClient(principal) && (resource.amount() != null || resource.baseAmount() != null)) {
+            throw new AccessDeniedException("Clients cannot change reservation pricing");
+        }
+        ReservationStatus status = resource.status() == null ? null : ReservationStatus.fromDisplayName(resource.status());
         var reservation = parkingCommandService.handle(new UpdateReservationCommand(
                 reservationId,
                 resource.endDate(),

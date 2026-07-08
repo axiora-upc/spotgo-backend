@@ -7,7 +7,9 @@ import jakarta.persistence.*;
 import lombok.Getter;
 
 @Entity
-@Table(name = "employees")
+@Table(name = "employees", indexes = {
+    @Index(name = "idx_employee_parkingId", columnList = "parkingId")
+})
 @Getter
 public class Employee extends UuidIdentifiedAggregateRoot<Employee> {
 

@@ -32,6 +32,13 @@ public class SubscriptionRepositoryImpl implements SubscriptionRepository {
     }
 
     @Override
+    public List<Subscription> findAllByClientId(String clientId) {
+        return subscriptionPersistenceRepository.findAllByClientId(clientId).stream()
+                .map(SubscriptionPersistenceAssembler::toDomainFromPersistence)
+                .toList();
+    }
+
+    @Override
     public Subscription save(Subscription subscription) {
         var entity = SubscriptionPersistenceAssembler.toPersistenceFromDomain(subscription);
         var saved = subscriptionPersistenceRepository.save(entity);

@@ -4,7 +4,9 @@ import com.axiora.spotgo.shared.infrastructure.persistence.jpa.entities.Auditabl
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "subscriptions")
+@Table(name = "subscriptions", indexes = {
+    @Index(name = "idx_subscription_clientId", columnList = "clientId")
+})
 public class SubscriptionPersistenceEntity extends AuditableAbstractPersistenceEntity {
 
     @Column(nullable = false)

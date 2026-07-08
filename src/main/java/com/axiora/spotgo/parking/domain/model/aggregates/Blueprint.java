@@ -5,7 +5,10 @@ import lombok.Getter;
 import com.axiora.spotgo.shared.infrastructure.persistence.jpa.entities.UuidIdentifiedAggregateRoot;
 
 @Entity
-@Table(name = "blueprints")
+@Table(name = "blueprints", indexes = {
+    @Index(name = "idx_blueprint_adminId", columnList = "adminId"),
+    @Index(name = "idx_blueprint_parkingId", columnList = "parkingId")
+})
 @Getter
 public class Blueprint extends UuidIdentifiedAggregateRoot<Blueprint> {
 

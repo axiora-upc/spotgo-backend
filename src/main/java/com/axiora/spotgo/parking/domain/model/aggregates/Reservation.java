@@ -8,7 +8,11 @@ import lombok.Getter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "reservations")
+@Table(name = "reservations", indexes = {
+    @Index(name = "idx_reservation_clientId", columnList = "clientId"),
+    @Index(name = "idx_reservation_parkingId", columnList = "parkingId"),
+    @Index(name = "idx_reservation_code", columnList = "code")
+})
 @Getter
 public class Reservation extends UuidIdentifiedAggregateRoot<Reservation> {
 
