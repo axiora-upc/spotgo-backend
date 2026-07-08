@@ -37,6 +37,10 @@ public class MonitoringQueryServiceImpl implements MonitoringQueryService {
         return employeeRepository.findAll();
     }
 
+    public List<Employee> getEmployeesByParkingId(String parkingId) {
+        return employeeRepository.findByParkingId(parkingId);
+    }
+
     @Override
     public List<OccupancyByHour> handle(GetAllOccupancyByHourQuery query) {
         return occupancyByHourRepository.findAll();

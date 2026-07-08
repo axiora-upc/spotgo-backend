@@ -5,7 +5,9 @@ import lombok.Getter;
 import com.axiora.spotgo.shared.infrastructure.persistence.jpa.entities.UuidIdentifiedAggregateRoot;
 
 @Entity
-@Table(name = "parkings")
+@Table(name = "parkings", indexes = {
+    @Index(name = "idx_parking_adminId", columnList = "adminId")
+})
 @Getter
 public class Parking extends UuidIdentifiedAggregateRoot<Parking> {
 
@@ -45,10 +47,10 @@ public class Parking extends UuidIdentifiedAggregateRoot<Parking> {
     @Column
     private String systemStatus;
 
-    @Column(nullable = true)
+    @Column
     private Double rating;
 
-    @Column(name = "pricePerHour", nullable = true)
+    @Column(name = "pricePerHour")
     private Double pricePerHour;
 
     @Column

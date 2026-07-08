@@ -1,10 +1,12 @@
 package com.axiora.spotgo.monitoring.interfaces.rest;
 
+import com.axiora.spotgo.iam.infrastructure.security.SpotgoUserPrincipal;
 import com.axiora.spotgo.monitoring.domain.model.aggregates.OccupancyByHour;
-import com.axiora.spotgo.monitoring.domain.model.queries.GetAllOccupancyByHourQuery;
 import com.axiora.spotgo.monitoring.domain.model.queries.GetOccupancyByHourByParkingIdQuery;
 import com.axiora.spotgo.monitoring.application.internal.queryservices.MonitoringQueryService;
 import com.axiora.spotgo.monitoring.interfaces.rest.resources.OccupancyByHourResource;
+import com.axiora.spotgo.shared.application.security.AuthorizationService;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -12,9 +14,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/occupancyByHour")
@@ -23,22 +24,24 @@ import java.util.List;
 public class OccupancyByHourController {
 
     private final MonitoringQueryService monitoringQueryService;
+    private final AuthorizationService authorizationService;
 
-    public OccupancyByHourController(MonitoringQueryService monitoringQueryService) {
+    public OccupancyByHourController(MonitoringQueryService monitoringQueryService, AuthorizationService authorizationService) {
         this.monitoringQueryService = monitoringQueryService;
+        this.authorizationService = authorizationService;
     }
 
     @GetMapping
     @Operation(summary = "Get occupancy by hour", description = "Returns hourly occupancy points, optionally filtered by parking ID.")
     @ApiResponse(responseCode = "200", description = "List of occupancy points returned",
             content = @Content(schema = @Schema(implementation = OccupancyByHourResource.class)))
-    public ResponseEntity<List<OccupancyByHourResource>> getOccupancyByHour(@RequestParam(required = false) String parkingId) {
-        List<OccupancyByHour> points;
-        if (parkingId != null) {
-            points = monitoringQueryService.handle(new GetOccupancyByHourByParkingIdQuery(parkingId));
-        } else {
-            points = monitoringQueryService.handle(new GetAllOccupancyByHourQuery());
+    public ResponseEntity<List<OccupancyByHourResource>> getOccupancyByHour(@AuthenticationPrincipal SpotgoUserPrincipal principal,
+                                                                             @RequestParam(required = false) String parkingId) {
+        var scopedParkingId = authorizationService.requireAdminParkingId(principal);
+        if (parkingId != null && !parkingId.equals(scopedParkingId)) {
+            throw new org.springframework.security.access.AccessDeniedException("Requested parking is outside authenticated scope");
         }
+        List<OccupancyByHour> points = monitoringQueryService.handle(new GetOccupancyByHourByParkingIdQuery(scopedParkingId));
         var resources = points.stream().map(this::toResource).toList();
         return ResponseEntity.ok(resources);
     }

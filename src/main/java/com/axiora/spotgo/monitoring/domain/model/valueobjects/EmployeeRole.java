@@ -15,9 +15,12 @@ public enum EmployeeRole {
     }
 
     public static EmployeeRole fromDisplayName(String displayName) {
+        if (displayName == null) {
+            throw new IllegalArgumentException("Display name cannot be null");
+        }
         for (EmployeeRole r : values()) {
             if (r.displayName.equals(displayName)) return r;
         }
-        return GUARD;
+        throw new IllegalArgumentException("Invalid EmployeeRole: " + displayName);
     }
 }

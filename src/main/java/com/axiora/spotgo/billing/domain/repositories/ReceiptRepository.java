@@ -11,6 +11,8 @@ public interface ReceiptRepository {
 
     List<Receipt> findAll();
 
+    List<Receipt> findAllByClientId(String clientId);
+
     List<Receipt> findAllByBookingCode(String bookingCode);
 
     Receipt save(Receipt receipt);

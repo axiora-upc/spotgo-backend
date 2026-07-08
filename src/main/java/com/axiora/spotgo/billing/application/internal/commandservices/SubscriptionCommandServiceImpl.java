@@ -40,7 +40,7 @@ public class SubscriptionCommandServiceImpl implements SubscriptionCommandServic
             var existing = subscriptionRepository.findById(command.subscriptionId());
             if (existing.isEmpty()) {
                 return Result.failure(ApplicationError.notFound(
-                        "Subscription", "Subscription with ID %d not found".formatted(command.subscriptionId())));
+                        "Subscription", "Subscription with ID %s not found".formatted(command.subscriptionId())));
             }
             var subscription = existing.get();
             subscription.update(command);
@@ -59,7 +59,7 @@ public class SubscriptionCommandServiceImpl implements SubscriptionCommandServic
             var existing = subscriptionRepository.findById(command.subscriptionId());
             if (existing.isEmpty()) {
                 return Result.failure(ApplicationError.notFound(
-                        "Subscription", "Subscription with ID %d not found".formatted(command.subscriptionId())));
+                        "Subscription", "Subscription with ID %s not found".formatted(command.subscriptionId())));
             }
             var subscription = existing.get();
             subscription.patchSavings(command);

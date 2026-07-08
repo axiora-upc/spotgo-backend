@@ -1,10 +1,12 @@
 package com.axiora.spotgo.monitoring.interfaces.rest;
 
+import com.axiora.spotgo.iam.infrastructure.security.SpotgoUserPrincipal;
 import com.axiora.spotgo.monitoring.domain.model.aggregates.Employee;
 import com.axiora.spotgo.monitoring.domain.model.commands.CreateEmployeeCommand;
 import com.axiora.spotgo.monitoring.domain.model.commands.DeleteEmployeeCommand;
 import com.axiora.spotgo.monitoring.domain.model.commands.UpdateEmployeeCommand;
 import com.axiora.spotgo.monitoring.domain.model.queries.GetAllEmployeesQuery;
+import com.axiora.spotgo.monitoring.infrastructure.persistence.jpa.repositories.EmployeeRepository;
 import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeRole;
 import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeStatus;
 import com.axiora.spotgo.monitoring.application.internal.commandservices.MonitoringCommandService;
@@ -12,19 +14,20 @@ import com.axiora.spotgo.monitoring.application.internal.queryservices.Monitorin
 import com.axiora.spotgo.monitoring.interfaces.rest.resources.CreateEmployeeResource;
 import com.axiora.spotgo.monitoring.interfaces.rest.resources.EmployeeResource;
 import com.axiora.spotgo.monitoring.interfaces.rest.resources.UpdateEmployeeResource;
+import com.axiora.spotgo.shared.application.security.AuthorizationService;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/employees")
@@ -34,10 +37,15 @@ public class EmployeesController {
 
     private final MonitoringCommandService monitoringCommandService;
     private final MonitoringQueryService monitoringQueryService;
+    private final EmployeeRepository employeeRepository;
+    private final AuthorizationService authorizationService;
 
-    public EmployeesController(MonitoringCommandService monitoringCommandService, MonitoringQueryService monitoringQueryService) {
+    public EmployeesController(MonitoringCommandService monitoringCommandService, MonitoringQueryService monitoringQueryService,
+                               EmployeeRepository employeeRepository, AuthorizationService authorizationService) {
         this.monitoringCommandService = monitoringCommandService;
         this.monitoringQueryService = monitoringQueryService;
+        this.employeeRepository = employeeRepository;
+        this.authorizationService = authorizationService;
     }
 
     @PostMapping
@@ -47,9 +55,11 @@ public class EmployeesController {
                     content = @Content(schema = @Schema(implementation = EmployeeResource.class))),
             @ApiResponse(responseCode = "400", description = "Invalid input")
     })
-    public ResponseEntity<EmployeeResource> createEmployee(@Valid @RequestBody CreateEmployeeResource resource) {
+    public ResponseEntity<EmployeeResource> createEmployee(@AuthenticationPrincipal SpotgoUserPrincipal principal,
+                                                           @Valid @RequestBody CreateEmployeeResource resource) {
+        var parkingId = authorizationService.requireAdminParkingId(principal);
         var command = new CreateEmployeeCommand(
-                resource.parkingId(), resource.firstName(), resource.lastName(),
+                parkingId, resource.firstName(), resource.lastName(),
                 EmployeeRole.fromDisplayName(resource.role()), resource.schedule(),
                 resource.shiftStart(), resource.shiftEnd(), EmployeeStatus.fromDisplayName(resource.status()));
         var employeeOptional = monitoringCommandService.handle(command);
@@ -63,8 +73,9 @@ public class EmployeesController {
     @Operation(summary = "Get all employees", description = "Returns the full list of employees.")
     @ApiResponse(responseCode = "200", description = "List of employees returned",
             content = @Content(schema = @Schema(implementation = EmployeeResource.class)))
-    public ResponseEntity<List<EmployeeResource>> getAllEmployees() {
-        var employees = monitoringQueryService.handle(new GetAllEmployeesQuery());
+    public ResponseEntity<List<EmployeeResource>> getAllEmployees(@AuthenticationPrincipal SpotgoUserPrincipal principal) {
+        var parkingId = authorizationService.requireAdminParkingId(principal);
+        var employees = employeeRepository.findByParkingId(parkingId);
         var resources = employees.stream().map(this::toResource).toList();
         return ResponseEntity.ok(resources);
     }
@@ -77,8 +88,14 @@ public class EmployeesController {
             @ApiResponse(responseCode = "400", description = "Invalid input or employee not found")
     })
     public ResponseEntity<EmployeeResource> updateEmployee(
+            @AuthenticationPrincipal SpotgoUserPrincipal principal,
             @PathVariable String employeeId,
             @Valid @RequestBody UpdateEmployeeResource resource) {
+        var currentEmployee = employeeRepository.findById(employeeId).orElse(null);
+        if (currentEmployee == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        authorizationService.requireEmployeeOwnership(principal, currentEmployee);
         var command = new UpdateEmployeeCommand(
                 employeeId, resource.firstName(), resource.lastName(),
                 EmployeeRole.fromDisplayName(resource.role()), resource.schedule(),
@@ -93,7 +110,11 @@ public class EmployeesController {
     @DeleteMapping("/{employeeId}")
     @Operation(summary = "Delete an employee", description = "Removes an employee by its ID.")
     @ApiResponse(responseCode = "204", description = "Employee deleted successfully")
-    public ResponseEntity<Void> deleteEmployee(@PathVariable String employeeId) {
+    public ResponseEntity<Void> deleteEmployee(@AuthenticationPrincipal SpotgoUserPrincipal principal,
+                                               @PathVariable String employeeId) {
+        var currentEmployee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
+        authorizationService.requireEmployeeOwnership(principal, currentEmployee);
         monitoringCommandService.handle(new DeleteEmployeeCommand(employeeId));
         return ResponseEntity.noContent().build();
     }

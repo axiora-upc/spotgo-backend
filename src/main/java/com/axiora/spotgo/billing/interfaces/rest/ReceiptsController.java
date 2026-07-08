@@ -3,12 +3,13 @@ package com.axiora.spotgo.billing.interfaces.rest;
 import com.axiora.spotgo.billing.application.commandservices.ReceiptCommandService;
 import com.axiora.spotgo.billing.application.queryservices.ReceiptQueryService;
 import com.axiora.spotgo.billing.domain.model.commands.DeleteReceiptCommand;
-import com.axiora.spotgo.billing.domain.model.queries.GetAllReceiptsQuery;
 import com.axiora.spotgo.billing.domain.model.queries.GetReceiptByIdQuery;
 import com.axiora.spotgo.billing.domain.model.queries.GetReceiptsByBookingCodeQuery;
+import com.axiora.spotgo.billing.domain.model.commands.CreateReceiptCommand;
+import com.axiora.spotgo.billing.domain.repositories.ReceiptRepository;
+import com.axiora.spotgo.iam.infrastructure.security.SpotgoUserPrincipal;
 import com.axiora.spotgo.billing.interfaces.rest.resources.CreateReceiptResource;
 import com.axiora.spotgo.billing.interfaces.rest.resources.ReceiptResource;
-import com.axiora.spotgo.billing.interfaces.rest.transform.CreateReceiptCommandFromResourceAssembler;
 import com.axiora.spotgo.billing.interfaces.rest.transform.ReceiptResourceFromEntityAssembler;
 import com.axiora.spotgo.shared.application.result.ApplicationError;
 import com.axiora.spotgo.shared.interfaces.rest.transform.ErrorResponseAssembler;
@@ -24,10 +25,11 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -38,11 +40,14 @@ public class ReceiptsController {
 
     private final ReceiptCommandService receiptCommandService;
     private final ReceiptQueryService receiptQueryService;
+    private final ReceiptRepository receiptRepository;
 
     public ReceiptsController(ReceiptCommandService receiptCommandService,
-                              ReceiptQueryService receiptQueryService) {
+                              ReceiptQueryService receiptQueryService,
+                              ReceiptRepository receiptRepository) {
         this.receiptCommandService = receiptCommandService;
         this.receiptQueryService = receiptQueryService;
+        this.receiptRepository = receiptRepository;
     }
 
     @PostMapping
@@ -52,8 +57,18 @@ public class ReceiptsController {
                     content = @Content(schema = @Schema(implementation = ReceiptResource.class))),
             @ApiResponse(responseCode = "400", description = "Invalid input data")
     })
-    public ResponseEntity<?> createReceipt(@Valid @RequestBody CreateReceiptResource resource) {
-        var command = CreateReceiptCommandFromResourceAssembler.toCommandFromResource(resource);
+    public ResponseEntity<?> createReceipt(@AuthenticationPrincipal SpotgoUserPrincipal principal,
+                                           @Valid @RequestBody CreateReceiptResource resource) {
+        var command = new CreateReceiptCommand(
+                principal.getUserId(),
+                resource.invoiceNumber(),
+                resource.locationName(),
+                resource.date(),
+                resource.durationHours(),
+                resource.durationMinutes(),
+                resource.paymentMethod(),
+                resource.bookingCode(),
+                resource.amount());
         var result = receiptCommandService.handle(command);
         return ResponseEntityAssembler.toResponseEntityFromResult(
                 result,
@@ -70,13 +85,16 @@ public class ReceiptsController {
                     content = @Content(schema = @Schema(implementation = ReceiptResource.class)))
     })
     public ResponseEntity<List<ReceiptResource>> getAllReceipts(
+            @AuthenticationPrincipal SpotgoUserPrincipal principal,
             @RequestParam(required = false)
             @Parameter(description = "Filter receipts by booking code")
             String bookingCode
     ) {
         var receipts = (bookingCode != null && !bookingCode.isBlank())
-                ? receiptQueryService.handle(new GetReceiptsByBookingCodeQuery(bookingCode))
-                : receiptQueryService.handle(new GetAllReceiptsQuery());
+                ? receiptQueryService.handle(new GetReceiptsByBookingCodeQuery(bookingCode)).stream()
+                    .filter(receipt -> principal.getUserId().equals(receipt.getClientId()))
+                    .toList()
+                : receiptRepository.findAllByClientId(principal.getUserId());
         var result = receipts.stream()
                 .map(ReceiptResourceFromEntityAssembler::toResourceFromEntity)
                 .toList();
@@ -91,6 +109,7 @@ public class ReceiptsController {
             @ApiResponse(responseCode = "404", description = "Receipt not found")
     })
     public ResponseEntity<?> getReceiptById(
+            @AuthenticationPrincipal SpotgoUserPrincipal principal,
             @PathVariable
             @Parameter(description = "Receipt unique identifier", example = "1", required = true)
             String receiptId
@@ -98,8 +117,11 @@ public class ReceiptsController {
         var query = new GetReceiptByIdQuery(receiptId);
         var receipt = receiptQueryService.handle(query);
         if (receipt.isEmpty()) {
-            var error = ApplicationError.notFound("Receipt", "Receipt with ID %d not found".formatted(receiptId));
+            var error = ApplicationError.notFound("Receipt", "Receipt with ID %s not found".formatted(receiptId));
             return ErrorResponseAssembler.toErrorResponseFromApplicationError(error);
+        }
+        if (!principal.getUserId().equals(receipt.get().getClientId())) {
+            throw new AccessDeniedException("Receipt is outside authenticated scope");
         }
         return ResponseEntity.ok(ReceiptResourceFromEntityAssembler.toResourceFromEntity(receipt.get()));
     }
@@ -111,13 +133,18 @@ public class ReceiptsController {
             @ApiResponse(responseCode = "404", description = "Receipt not found")
     })
     public ResponseEntity<?> deleteReceipt(
+            @AuthenticationPrincipal SpotgoUserPrincipal principal,
             @PathVariable
             @Parameter(description = "Receipt unique identifier", example = "1", required = true)
             String receiptId
     ) {
+        var existingReceipt = receiptRepository.findById(receiptId);
+        if (existingReceipt.isPresent() && !principal.getUserId().equals(existingReceipt.get().getClientId())) {
+            throw new AccessDeniedException("Receipt is outside authenticated scope");
+        }
         var result = receiptCommandService.handle(new DeleteReceiptCommand(receiptId));
         if (result.isFailure()) {
-            var error = ApplicationError.notFound("Receipt", "Receipt with ID %d not found".formatted(receiptId));
+            var error = ApplicationError.notFound("Receipt", "Receipt with ID %s not found".formatted(receiptId));
             return ErrorResponseAssembler.toErrorResponseFromApplicationError(error);
         }
         return ResponseEntity.noContent().build();

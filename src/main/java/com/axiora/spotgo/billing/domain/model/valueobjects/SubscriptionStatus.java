@@ -5,11 +5,14 @@ public enum SubscriptionStatus {
     INACTIVE,
     CANCELLED;
 
-    public static SubscriptionStatus fromValue(String value) {
+    public static SubscriptionStatus fromDisplayName(String value) {
+        if (value == null) {
+            throw new IllegalArgumentException("Subscription status cannot be null");
+        }
         try {
             return SubscriptionStatus.valueOf(value.trim().toUpperCase());
         } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid subscription status: " + value);
+            throw new IllegalArgumentException("Invalid subscription status: " + value, e);
         }
     }
 }

@@ -3,11 +3,14 @@ package com.axiora.spotgo.profiles.domain.model.aggregates;
 import com.axiora.spotgo.shared.infrastructure.persistence.jpa.entities.UuidIdentifiedAggregateRoot;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.Getter;
 
 @Entity
-@Table(name = "vehicles")
+@Table(name = "vehicles", indexes = {
+    @Index(name = "idx_vehicle_clientId", columnList = "clientId")
+})
 @Getter
 public class Vehicle extends UuidIdentifiedAggregateRoot<Vehicle> {
 

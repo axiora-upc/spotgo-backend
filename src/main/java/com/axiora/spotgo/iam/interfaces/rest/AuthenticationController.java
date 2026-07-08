@@ -1,7 +1,8 @@
 package com.axiora.spotgo.iam.interfaces.rest;
 
 import com.axiora.spotgo.iam.application.UserAccountService;
-import com.axiora.spotgo.iam.interfaces.rest.resources.ResetPasswordResource;
+import com.axiora.spotgo.iam.interfaces.rest.resources.PasswordResetConfirmResource;
+import com.axiora.spotgo.iam.interfaces.rest.resources.PasswordResetRequestResource;
 import com.axiora.spotgo.iam.interfaces.rest.resources.SignInResource;
 import com.axiora.spotgo.iam.interfaces.rest.resources.SignUpResource;
 import io.swagger.v3.oas.annotations.Operation;
@@ -51,14 +52,25 @@ public class AuthenticationController {
                 .body(userAccountService.signUpClient(request.firstName(), request.lastName(), request.email(), request.password()));
     }
 
-    @PostMapping("/reset-password")
-    @Operation(summary = "Reset password", description = "Resets a user's password for demo/test flows.")
+    @PostMapping("/password-reset/request")
+    @Operation(summary = "Request password reset", description = "Requests a one-time reset code to be sent to the provided email.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Password reset successfully"),
+            @ApiResponse(responseCode = "204", description = "Password reset request accepted"),
             @ApiResponse(responseCode = "400", description = "Invalid input", content = @Content)
     })
-    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordResource request) {
-        userAccountService.resetPassword(request.email(), request.newPassword());
+    public ResponseEntity<Void> requestPasswordReset(@Valid @RequestBody PasswordResetRequestResource request) {
+        userAccountService.requestPasswordReset(request.email());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/password-reset/confirm")
+    @Operation(summary = "Confirm password reset", description = "Confirms a password reset with email, one-time code, and new password.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Password reset successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid input or reset code", content = @Content)
+    })
+    public ResponseEntity<Void> confirmPasswordReset(@Valid @RequestBody PasswordResetConfirmResource request) {
+        userAccountService.confirmPasswordReset(request.email(), request.code(), request.newPassword());
         return ResponseEntity.noContent().build();
     }
 }

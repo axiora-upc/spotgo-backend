@@ -5,7 +5,9 @@ import lombok.Getter;
 import com.axiora.spotgo.shared.infrastructure.persistence.jpa.entities.UuidIdentifiedAggregateRoot;
 
 @Entity
-@Table(name = "weeklyTrends")
+@Table(name = "weeklyTrends", indexes = {
+    @Index(name = "idx_weeklyTrend_parkingId", columnList = "parkingId")
+})
 @Getter
 public class WeeklyTrend extends UuidIdentifiedAggregateRoot<WeeklyTrend> {
 

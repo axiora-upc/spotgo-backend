@@ -15,9 +15,12 @@ public enum ReportStatus {
     }
 
     public static ReportStatus fromDisplayName(String displayName) {
+        if (displayName == null) {
+            throw new IllegalArgumentException("Display name cannot be null");
+        }
         for (ReportStatus s : values()) {
             if (s.displayName.equals(displayName)) return s;
         }
-        return SUBMITTED;
+        throw new IllegalArgumentException("Invalid ReportStatus: " + displayName);
     }
 }

@@ -36,11 +36,9 @@ public record UpdateSubscriptionResource(
         @Schema(description = "Auto-renewal enabled", example = "true")
         Boolean autoRenewal,
 
-        @NotBlank(message = "{validation.not-blank}")
         @Schema(description = "Last four digits of payment method", example = "4242")
         String paymentMethodLastFour,
 
-        @NotBlank(message = "{validation.not-blank}")
         @Schema(description = "Payment method expiry", example = "12/28")
         String paymentMethodExpiry
 ) {

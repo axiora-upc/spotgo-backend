@@ -39,7 +39,7 @@ public class ReceiptCommandServiceImpl implements ReceiptCommandService {
             var existing = receiptRepository.findById(command.receiptId());
             if (existing.isEmpty()) {
                 return Result.failure(ApplicationError.notFound(
-                        "Receipt", "Receipt with ID %d not found".formatted(command.receiptId())));
+                        "Receipt", "Receipt with ID %s not found".formatted(command.receiptId())));
             }
             receiptRepository.deleteById(command.receiptId());
             return Result.success(null);

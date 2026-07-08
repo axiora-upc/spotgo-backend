@@ -1,29 +1,35 @@
 package com.axiora.spotgo.parking.interfaces.rest;
 
 import com.axiora.spotgo.parking.domain.model.aggregates.ClientReport;
+import com.axiora.spotgo.parking.domain.model.aggregates.Reservation;
 import com.axiora.spotgo.parking.domain.model.commands.CreateClientReportCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateClientReportStatusCommand;
-import com.axiora.spotgo.parking.domain.model.queries.GetAllClientReportsQuery;
+import com.axiora.spotgo.parking.domain.model.queries.GetReservationsByClientIdQuery;
+import com.axiora.spotgo.parking.domain.model.queries.GetReservationsByParkingIdQuery;
 import com.axiora.spotgo.parking.domain.model.valueobjects.ReportStatus;
 import com.axiora.spotgo.parking.domain.model.valueobjects.ReportType;
+import com.axiora.spotgo.iam.infrastructure.security.SpotgoUserPrincipal;
 import com.axiora.spotgo.parking.application.internal.commandservices.ParkingCommandService;
 import com.axiora.spotgo.parking.application.internal.queryservices.ParkingQueryService;
+import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ClientReportRepository;
 import com.axiora.spotgo.parking.interfaces.rest.resources.ClientReportResource;
 import com.axiora.spotgo.parking.interfaces.rest.resources.CreateClientReportResource;
 import com.axiora.spotgo.parking.interfaces.rest.resources.UpdateClientReportStatusResource;
+import com.axiora.spotgo.shared.application.security.AuthorizationService;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
+import java.util.Set;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/clientReports")
@@ -32,10 +38,15 @@ public class ClientReportsController {
 
     private final ParkingCommandService parkingCommandService;
     private final ParkingQueryService parkingQueryService;
+    private final ClientReportRepository clientReportRepository;
+    private final AuthorizationService authorizationService;
 
-    public ClientReportsController(ParkingCommandService parkingCommandService, ParkingQueryService parkingQueryService) {
+    public ClientReportsController(ParkingCommandService parkingCommandService, ParkingQueryService parkingQueryService,
+                                   ClientReportRepository clientReportRepository, AuthorizationService authorizationService) {
         this.parkingCommandService = parkingCommandService;
         this.parkingQueryService = parkingQueryService;
+        this.clientReportRepository = clientReportRepository;
+        this.authorizationService = authorizationService;
     }
 
     @PostMapping
@@ -46,9 +57,10 @@ public class ClientReportsController {
                     content = @Content(schema = @Schema(implementation = ClientReportResource.class))),
             @ApiResponse(responseCode = "400", description = "Invalid input")
     })
-    public ResponseEntity<ClientReportResource> createClientReport(@Valid @RequestBody CreateClientReportResource resource) {
+    public ResponseEntity<ClientReportResource> createClientReport(@AuthenticationPrincipal SpotgoUserPrincipal principal,
+                                                                   @Valid @RequestBody CreateClientReportResource resource) {
         var command = new CreateClientReportCommand(
-                resource.clientId(),
+                principal.getUserId(),
                 resource.parkingId(),
                 resource.reservationId(),
                 ReportType.fromDisplayName(resource.type()),
@@ -62,11 +74,22 @@ public class ClientReportsController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','CLIENT')")
     @Operation(summary = "Get all client reports", description = "Returns the full list of client reports.")
     @ApiResponse(responseCode = "200", description = "List of client reports returned",
             content = @Content(schema = @Schema(implementation = ClientReportResource.class)))
-    public ResponseEntity<List<ClientReportResource>> getAllClientReports() {
-        var reports = parkingQueryService.handle(new GetAllClientReportsQuery());
+    public ResponseEntity<List<ClientReportResource>> getAllClientReports(@AuthenticationPrincipal SpotgoUserPrincipal principal) {
+        List<ClientReport> reports;
+        if (authorizationService.isAdmin(principal)) {
+            var parkingId = authorizationService.requireAdminParkingId(principal);
+            reports = clientReportRepository.findAll().stream()
+                    .filter(report -> parkingId.equals(report.getParkingId()))
+                    .toList();
+        } else {
+            reports = clientReportRepository.findAll().stream()
+                    .filter(report -> principal.getUserId().equals(report.getClientId()))
+                    .toList();
+        }
         var resources = reports.stream()
                 .map(this::toResource)
                 .toList();
@@ -74,6 +97,7 @@ public class ClientReportsController {
     }
 
     @PatchMapping("/{reportId}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update report status", description = "Updates the status of a client report (e.g. mark as resolved).")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Status updated successfully",
@@ -81,8 +105,14 @@ public class ClientReportsController {
             @ApiResponse(responseCode = "400", description = "Invalid status value or report not found")
     })
     public ResponseEntity<ClientReportResource> updateClientReportStatus(
+            @AuthenticationPrincipal SpotgoUserPrincipal principal,
             @PathVariable String reportId,
             @Valid @RequestBody UpdateClientReportStatusResource resource) {
+        var currentReport = clientReportRepository.findById(reportId).orElse(null);
+        if (currentReport == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        authorizationService.requireClientReportAccess(principal, currentReport);
         var command = new UpdateClientReportStatusCommand(reportId, ReportStatus.fromDisplayName(resource.status()));
         var reportOptional = parkingCommandService.handle(command);
         if (reportOptional.isEmpty()) {

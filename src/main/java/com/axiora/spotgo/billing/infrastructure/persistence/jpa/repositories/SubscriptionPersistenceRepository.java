@@ -4,4 +4,5 @@ import com.axiora.spotgo.billing.infrastructure.persistence.jpa.entities.Subscri
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SubscriptionPersistenceRepository extends JpaRepository<SubscriptionPersistenceEntity, String> {
+    java.util.List<SubscriptionPersistenceEntity> findAllByClientId(String clientId);
 }

@@ -17,9 +17,12 @@ public enum SpotStatus {
     }
 
     public static SpotStatus fromDisplayName(String displayName) {
+        if (displayName == null) {
+            throw new IllegalArgumentException("Display name cannot be null");
+        }
         for (SpotStatus s : values()) {
             if (s.displayName.equals(displayName)) return s;
         }
-        return FREE;
+        throw new IllegalArgumentException("Invalid SpotStatus: " + displayName);
     }
 }

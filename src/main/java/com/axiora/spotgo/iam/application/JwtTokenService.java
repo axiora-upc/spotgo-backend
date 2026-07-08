@@ -10,24 +10,32 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import javax.crypto.SecretKey;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class JwtTokenService {
 
-    @Value("${authorization.jwt.secret}")
-    private String secret;
+    private static final Logger log = LoggerFactory.getLogger(JwtTokenService.class);
 
-    @Value("${authorization.jwt.expiration.days}")
-    private long expirationDays;
+    private final String secret;
+    private final long expirationDays;
+
+    public JwtTokenService(
+            @Value("${authorization.jwt.secret}") String secret,
+            @Value("${authorization.jwt.expiration.days}") long expirationDays) {
+        this.secret = secret;
+        this.expirationDays = expirationDays;
+    }
 
     public String generateToken(UserAccount user) {
         var now = Instant.now();
         return Jwts.builder()
                 .subject(user.getEmail())
                 .claim("uid", user.getId())
-                .claim("role", user.getRole().name())
+                .claim("role", user.getRole().name().toLowerCase())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(expirationDays, ChronoUnit.DAYS)))
                 .signWith(getSigningKey())
@@ -42,7 +50,8 @@ public class JwtTokenService {
         try {
             parseClaims(token);
             return true;
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.debug("JWT token validation failed: {}", e.getMessage());
             return false;
         }
     }
