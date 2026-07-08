@@ -12,6 +12,6 @@ public record OccupancyByHourResource(
         @Schema(description = "Hour of the day", example = "06:00")
         String hour,
 
-        @Schema(description = "Occupancy intensity for that hour, 0 to 100", example = "20")
-        Integer intensity
+        @Schema(description = "Occupancy intensity for that hour, from 0.0 to 1.0", example = "0.2")
+        Double intensity
 ) {}

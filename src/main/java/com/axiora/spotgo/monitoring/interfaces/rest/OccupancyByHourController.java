@@ -47,6 +47,6 @@ public class OccupancyByHourController {
     }
 
     private OccupancyByHourResource toResource(OccupancyByHour point) {
-        return new OccupancyByHourResource(point.getId(), point.getParkingId(), point.getHour(), point.getIntensity());
+        return new OccupancyByHourResource(point.getId(), point.getParkingId(), point.getHour(), point.getIntensity() / 100.0);
     }
 }
