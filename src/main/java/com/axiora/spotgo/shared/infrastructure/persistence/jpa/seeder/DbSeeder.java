@@ -51,7 +51,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 
-@Profile({"dev", "local"})
+@Profile({"dev", "local", "production"})
 @Component
 public class DbSeeder implements CommandLineRunner {
 
