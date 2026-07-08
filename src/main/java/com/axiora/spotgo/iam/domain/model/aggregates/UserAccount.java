@@ -1,11 +1,11 @@
 package com.axiora.spotgo.iam.domain.model.aggregates;
 
 import com.axiora.spotgo.iam.domain.model.valueobjects.UserRole;
+import com.axiora.spotgo.iam.infrastructure.persistence.jpa.converters.UserRoleConverter;
 import com.axiora.spotgo.shared.infrastructure.persistence.jpa.entities.UuidIdentifiedAggregateRoot;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.Getter;
 
@@ -32,7 +32,7 @@ public class UserAccount extends UuidIdentifiedAggregateRoot<UserAccount> {
     @Column(nullable = false)
     private String city;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = UserRoleConverter.class)
     @Column(nullable = false)
     private UserRole role;
 
