@@ -1,5 +1,10 @@
 package com.axiora.spotgo.iam.application;
 
+import com.axiora.spotgo.billing.domain.model.aggregates.Subscription;
+import com.axiora.spotgo.billing.domain.model.valueobjects.SubscriptionStatus;
+import com.axiora.spotgo.billing.domain.model.valueobjects.PlanType;
+import com.axiora.spotgo.billing.domain.repositories.ClientPlanRepository;
+import com.axiora.spotgo.billing.domain.repositories.SubscriptionRepository;
 import com.axiora.spotgo.iam.domain.model.aggregates.UserAccount;
 import com.axiora.spotgo.iam.domain.model.aggregates.PasswordResetCode;
 import com.axiora.spotgo.iam.domain.model.valueobjects.UserRole;
@@ -26,6 +31,8 @@ public class UserAccountService {
     private final UserAccountRepository userAccountRepository;
     private final PasswordResetCodeRepository passwordResetCodeRepository;
     private final ParkingRepository parkingRepository;
+    private final ClientPlanRepository clientPlanRepository;
+    private final SubscriptionRepository subscriptionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService jwtTokenService;
     private final PasswordResetNotificationService passwordResetNotificationService;
@@ -36,6 +43,8 @@ public class UserAccountService {
     public UserAccountService(UserAccountRepository userAccountRepository,
                               PasswordResetCodeRepository passwordResetCodeRepository,
                               ParkingRepository parkingRepository,
+                              ClientPlanRepository clientPlanRepository,
+                              SubscriptionRepository subscriptionRepository,
                               PasswordEncoder passwordEncoder,
                               JwtTokenService jwtTokenService,
                               PasswordResetNotificationService passwordResetNotificationService,
@@ -45,6 +54,8 @@ public class UserAccountService {
         this.userAccountRepository = userAccountRepository;
         this.passwordResetCodeRepository = passwordResetCodeRepository;
         this.parkingRepository = parkingRepository;
+        this.clientPlanRepository = clientPlanRepository;
+        this.subscriptionRepository = subscriptionRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenService = jwtTokenService;
         this.passwordResetNotificationService = passwordResetNotificationService;
@@ -68,7 +79,15 @@ public class UserAccountService {
             throw new IllegalArgumentException("iam.errors.email-taken");
         }
         var user = new UserAccount(firstName, lastName, normalizedEmail, passwordEncoder.encode(password), "", "", UserRole.CLIENT);
-        return toAuthenticated(userAccountRepository.save(user), jwtTokenService.generateToken(user));
+        var savedUser = userAccountRepository.save(user);
+        clientPlanRepository.findAll().stream()
+                .filter(plan -> plan.getType() == PlanType.FREE)
+                .findFirst()
+                .ifPresent(freePlan -> subscriptionRepository.save(new Subscription(
+                        savedUser.getId(), freePlan.getId(), SubscriptionStatus.ACTIVE,
+                        "", 0.0, 0, 0.0, "", Instant.now().toString(),
+                        false, "", "")));
+        return toAuthenticated(savedUser, jwtTokenService.generateToken(savedUser));
     }
 
     public void requestPasswordReset(String email) {

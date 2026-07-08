@@ -8,6 +8,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.axiora.spotgo.billing.domain.model.aggregates.ClientPlan;
+import com.axiora.spotgo.billing.domain.model.aggregates.Subscription;
+import com.axiora.spotgo.billing.domain.model.valueobjects.PlanType;
+import com.axiora.spotgo.billing.domain.repositories.ClientPlanRepository;
+import com.axiora.spotgo.billing.domain.repositories.SubscriptionRepository;
 import com.axiora.spotgo.iam.domain.model.aggregates.PasswordResetCode;
 import com.axiora.spotgo.iam.domain.model.aggregates.UserAccount;
 import com.axiora.spotgo.iam.domain.model.valueobjects.UserRole;
@@ -17,6 +22,7 @@ import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.Par
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,6 +42,10 @@ class UserAccountServiceTest {
     @Mock
     private ParkingRepository parkingRepository;
     @Mock
+    private ClientPlanRepository clientPlanRepository;
+    @Mock
+    private SubscriptionRepository subscriptionRepository;
+    @Mock
     private JwtTokenService jwtTokenService;
     @Mock
     private PasswordResetNotificationService passwordResetNotificationService;
@@ -52,6 +62,8 @@ class UserAccountServiceTest {
                 userAccountRepository,
                 passwordResetCodeRepository,
                 parkingRepository,
+                clientPlanRepository,
+                subscriptionRepository,
                 passwordEncoder,
                 jwtTokenService,
                 passwordResetNotificationService,
@@ -113,5 +125,27 @@ class UserAccountServiceTest {
         verify(passwordResetCodeRepository).save(resetCode);
         assertEquals(true, passwordEncoder.matches("NewPassword123!", user.getPasswordHash()));
         assertEquals(Instant.parse("2026-07-07T10:15:30Z"), resetCode.getUsedAt());
+    }
+
+    @Test
+    void signUpClientCreatesFreePlanSubscription() {
+        var freePlan = new ClientPlan("plan-1", PlanType.FREE, "Free Plan", 0.0,
+                "Basic plan", 3, 0.0, List.of("feature1"));
+        var savedUser = new UserAccount("Ana", "Diaz", "new@spotgo.com",
+                passwordEncoder.encode("Password123!"), "", "", UserRole.CLIENT);
+
+        when(userAccountRepository.existsByEmail("new@spotgo.com")).thenReturn(false);
+        when(userAccountRepository.save(any(UserAccount.class))).thenReturn(savedUser);
+        when(clientPlanRepository.findAll()).thenReturn(List.of(freePlan));
+        when(jwtTokenService.generateToken(any())).thenReturn("token");
+
+        service.signUpClient("Ana", "Diaz", "new@spotgo.com", "Password123!");
+
+        var subCaptor = ArgumentCaptor.forClass(Subscription.class);
+        verify(subscriptionRepository).save(subCaptor.capture());
+        var sub = subCaptor.getValue();
+        assertEquals(savedUser.getId(), sub.getClientId());
+        assertEquals("plan-1", sub.getPlanId());
+        assertEquals("", sub.getPaymentMethodLastFour());
     }
 }
