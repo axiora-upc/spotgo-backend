@@ -34,6 +34,12 @@ public record DetectedSpotResource(
         @Schema(description = "Height as a percentage of the blueprint height", example = "16.33")
         @JsonProperty("h_pct") Double hPct,
 
+        @Schema(description = "Identifier of the employee currently reserving this spot", example = "1")
+        String assignedEmployeeId,
+
+        @Schema(description = "Name of the employee currently reserving this spot", example = "Piero Quiroz")
+        String assignedEmployeeName,
+
         @Schema(description = "Spot status", example = "available",
                 allowableValues = {"available", "occupied", "reserved", "maintenance"})
         String status

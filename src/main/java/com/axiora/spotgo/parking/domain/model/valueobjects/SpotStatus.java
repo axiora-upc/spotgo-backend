@@ -1,7 +1,7 @@
 package com.axiora.spotgo.parking.domain.model.valueobjects;
 
 public enum SpotStatus {
-    FREE("available"),
+    AVAILABLE("available"),
     OCCUPIED("occupied"),
     RESERVED("reserved"),
     MAINTENANCE("maintenance");

@@ -22,11 +22,11 @@ public record ReservationResource(
         String spot,
 
         @Schema(description = "Reservation start date and time")
-        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "America/Lima")
         LocalDateTime startDate,
 
         @Schema(description = "Reservation end date and time")
-        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "America/Lima")
         LocalDateTime endDate,
 
         @Schema(description = "Reservation status", example = "active",

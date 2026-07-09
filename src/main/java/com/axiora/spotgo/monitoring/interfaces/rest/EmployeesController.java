@@ -1,6 +1,8 @@
 package com.axiora.spotgo.monitoring.interfaces.rest;
 
 import com.axiora.spotgo.iam.infrastructure.security.SpotgoUserPrincipal;
+import com.axiora.spotgo.monitoring.application.EmployeeSpotAssignmentService;
+import com.axiora.spotgo.parking.application.ParkingOccupancyService;
 import com.axiora.spotgo.monitoring.domain.model.aggregates.Employee;
 import com.axiora.spotgo.monitoring.domain.model.commands.CreateEmployeeCommand;
 import com.axiora.spotgo.monitoring.domain.model.commands.DeleteEmployeeCommand;
@@ -27,6 +29,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -39,16 +42,23 @@ public class EmployeesController {
     private final MonitoringQueryService monitoringQueryService;
     private final EmployeeRepository employeeRepository;
     private final AuthorizationService authorizationService;
+    private final EmployeeSpotAssignmentService employeeSpotAssignmentService;
+    private final ParkingOccupancyService parkingOccupancyService;
 
     public EmployeesController(MonitoringCommandService monitoringCommandService, MonitoringQueryService monitoringQueryService,
-                               EmployeeRepository employeeRepository, AuthorizationService authorizationService) {
+                               EmployeeRepository employeeRepository, AuthorizationService authorizationService,
+                               EmployeeSpotAssignmentService employeeSpotAssignmentService,
+                               ParkingOccupancyService parkingOccupancyService) {
         this.monitoringCommandService = monitoringCommandService;
         this.monitoringQueryService = monitoringQueryService;
         this.employeeRepository = employeeRepository;
         this.authorizationService = authorizationService;
+        this.employeeSpotAssignmentService = employeeSpotAssignmentService;
+        this.parkingOccupancyService = parkingOccupancyService;
     }
 
     @PostMapping
+    @Transactional
     @Operation(summary = "Create an employee", description = "Adds a new employee to a parking facility.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Employee created successfully",
@@ -58,14 +68,24 @@ public class EmployeesController {
     public ResponseEntity<EmployeeResource> createEmployee(@AuthenticationPrincipal SpotgoUserPrincipal principal,
                                                            @Valid @RequestBody CreateEmployeeResource resource) {
         var parkingId = authorizationService.requireAdminParkingId(principal);
+        employeeSpotAssignmentService.validateAssignment(
+                parkingId,
+                null,
+                resource.assignedSpot(),
+                resource.shiftStart(),
+                resource.shiftEnd(),
+                EmployeeStatus.fromDisplayName(resource.status()));
         var command = new CreateEmployeeCommand(
                 parkingId, resource.firstName(), resource.lastName(),
                 EmployeeRole.fromDisplayName(resource.role()), resource.schedule(),
-                resource.shiftStart(), resource.shiftEnd(), EmployeeStatus.fromDisplayName(resource.status()));
+                resource.shiftStart(), resource.shiftEnd(),
+                employeeSpotAssignmentService.normalizeSpot(resource.assignedSpot()),
+                EmployeeStatus.fromDisplayName(resource.status()));
         var employeeOptional = monitoringCommandService.handle(command);
         if (employeeOptional.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
+        parkingOccupancyService.reconcileParking(parkingId, java.time.LocalDateTime.now());
         return new ResponseEntity<>(toResource(employeeOptional.get()), HttpStatus.CREATED);
     }
 
@@ -80,7 +100,8 @@ public class EmployeesController {
         return ResponseEntity.ok(resources);
     }
 
-    @PutMapping("/{employeeId}")
+    @RequestMapping(value = "/{employeeId}", method = {RequestMethod.PUT, RequestMethod.PATCH})
+    @Transactional
     @Operation(summary = "Update an employee", description = "Replaces an employee's data.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Employee updated successfully",
@@ -96,14 +117,24 @@ public class EmployeesController {
             return ResponseEntity.badRequest().build();
         }
         authorizationService.requireEmployeeOwnership(principal, currentEmployee);
+        employeeSpotAssignmentService.validateAssignment(
+                currentEmployee.getParkingId(),
+                currentEmployee.getId(),
+                resource.assignedSpot(),
+                resource.shiftStart(),
+                resource.shiftEnd(),
+                EmployeeStatus.fromDisplayName(resource.status()));
         var command = new UpdateEmployeeCommand(
                 employeeId, resource.firstName(), resource.lastName(),
                 EmployeeRole.fromDisplayName(resource.role()), resource.schedule(),
-                resource.shiftStart(), resource.shiftEnd(), EmployeeStatus.fromDisplayName(resource.status()));
+                resource.shiftStart(), resource.shiftEnd(),
+                employeeSpotAssignmentService.normalizeSpot(resource.assignedSpot()),
+                EmployeeStatus.fromDisplayName(resource.status()));
         var employeeOptional = monitoringCommandService.handle(command);
         if (employeeOptional.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
+        parkingOccupancyService.reconcileParking(currentEmployee.getParkingId(), java.time.LocalDateTime.now());
         return ResponseEntity.ok(toResource(employeeOptional.get()));
     }
 
@@ -116,6 +147,7 @@ public class EmployeesController {
                 .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
         authorizationService.requireEmployeeOwnership(principal, currentEmployee);
         monitoringCommandService.handle(new DeleteEmployeeCommand(employeeId));
+        parkingOccupancyService.reconcileParking(currentEmployee.getParkingId(), java.time.LocalDateTime.now());
         return ResponseEntity.noContent().build();
     }
 
@@ -129,6 +161,7 @@ public class EmployeesController {
                 employee.getSchedule(),
                 employee.getShiftStart(),
                 employee.getShiftEnd(),
+                employee.getAssignedSpot(),
                 employee.getStatus().getDisplayName()
         );
     }

@@ -33,6 +33,9 @@ public record CreateEmployeeResource(
         @NotBlank
         String shiftEnd,
 
+        @Schema(description = "Assigned parking spot code", example = "A1")
+        String assignedSpot,
+
         @Schema(description = "Employee status", example = "on-duty",
                 allowableValues = {"on-duty", "off-duty"})
         @NotBlank

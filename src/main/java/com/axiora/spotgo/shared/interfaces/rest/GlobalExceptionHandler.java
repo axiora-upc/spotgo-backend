@@ -2,6 +2,7 @@ package com.axiora.spotgo.shared.interfaces.rest;
 
 import com.axiora.spotgo.shared.application.result.ApplicationError;
 import com.axiora.spotgo.shared.interfaces.rest.transform.ErrorResponseAssembler;
+import jakarta.servlet.http.HttpServletRequest;
 import org.jspecify.annotations.NullMarked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,9 +10,11 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import java.text.MessageFormat;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
@@ -85,6 +88,27 @@ public class GlobalExceptionHandler {
                 "access-denied",
                 "You do not have permission to perform this action.");
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError).getBody());
+    }
+
+    @ExceptionHandler(AuthorizationDeniedException.class)
+    public ResponseEntity<?> handleAuthorizationDeniedException(AuthorizationDeniedException ex) {
+        log.debug("Authorization denied: {}", ex.getMessage());
+        var applicationError = ApplicationError.unexpected(
+                "access-denied",
+                "You do not have permission to perform this action.");
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError).getBody());
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<?> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex,
+                                                      HttpServletRequest request) {
+        log.warn("Unsupported {} request to {}", request.getMethod(), request.getRequestURI());
+        var applicationError = ApplicationError.validationError(
+                "request-method",
+                "Request method '%s' is not supported".formatted(ex.getMethod()));
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(
                 ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError).getBody());
     }
 

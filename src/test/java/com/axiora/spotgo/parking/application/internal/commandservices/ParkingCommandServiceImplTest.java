@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.axiora.spotgo.iam.infrastructure.persistence.jpa.repositories.UserAccountRepository;
+import com.axiora.spotgo.monitoring.application.EmployeeSpotAssignmentService;
 import com.axiora.spotgo.parking.application.ParkingOccupancyService;
 import com.axiora.spotgo.parking.domain.model.aggregates.ClientReport;
 import com.axiora.spotgo.parking.domain.model.aggregates.Reservation;
@@ -44,6 +45,8 @@ class ParkingCommandServiceImplTest {
     private UserAccountRepository userAccountRepository;
     @Mock
     private ParkingOccupancyService parkingOccupancyService;
+    @Mock
+    private EmployeeSpotAssignmentService employeeSpotAssignmentService;
 
     private ParkingCommandServiceImpl service;
 
@@ -56,7 +59,8 @@ class ParkingCommandServiceImplTest {
                 reservationRepository,
                 clientReportRepository,
                 userAccountRepository,
-                parkingOccupancyService);
+                parkingOccupancyService,
+                employeeSpotAssignmentService);
     }
 
     @Test
@@ -118,9 +122,12 @@ class ParkingCommandServiceImplTest {
 
     @Test
     void reserveSpotReconcilesParkingOccupancy() {
+        var start = LocalDateTime.now().minusMinutes(5);
+        var end = LocalDateTime.now().plusMinutes(55);
         when(userAccountRepository.existsById("client-1")).thenReturn(true);
         when(parkingRepository.existsById("parking-1")).thenReturn(true);
         when(reservationRepository.findByParkingIdAndSpot("parking-1", "B5")).thenReturn(List.of());
+        when(employeeSpotAssignmentService.isSpotReservedForEmployee("parking-1", "B5", start, end)).thenReturn(false);
         when(reservationRepository.save(any(Reservation.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         service.handle(new ReserveSpotCommand(
@@ -128,12 +135,35 @@ class ParkingCommandServiceImplTest {
                 "parking-1",
                 "SPG-NEW",
                 "B5",
-                LocalDateTime.now().minusMinutes(5),
-                LocalDateTime.now().plusMinutes(55),
+                start,
+                end,
                 10.0,
                 10.0,
                 null));
 
         verify(parkingOccupancyService).reconcileParking(any(), any());
+    }
+
+    @Test
+    void reserveSpotRejectsEmployeeReservedSpot() {
+        var start = LocalDateTime.of(2026, 7, 7, 11, 0);
+        var end = LocalDateTime.of(2026, 7, 7, 13, 0);
+        when(userAccountRepository.existsById("client-1")).thenReturn(true);
+        when(parkingRepository.existsById("parking-1")).thenReturn(true);
+        when(reservationRepository.findByParkingIdAndSpot("parking-1", "B5")).thenReturn(List.of());
+        when(employeeSpotAssignmentService.isSpotReservedForEmployee("parking-1", "B5", start, end)).thenReturn(true);
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> service.handle(new ReserveSpotCommand(
+                "client-1",
+                "parking-1",
+                "SPG-NEW",
+                "B5",
+                start,
+                end,
+                10.0,
+                10.0,
+                null)));
+
+        assertEquals("Spot is reserved for an on-duty employee during the selected time range", exception.getMessage());
     }
 }

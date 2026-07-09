@@ -1,6 +1,7 @@
 package com.axiora.spotgo.parking.application.internal.commandservices;
 
 import com.axiora.spotgo.iam.infrastructure.persistence.jpa.repositories.UserAccountRepository;
+import com.axiora.spotgo.monitoring.application.EmployeeSpotAssignmentService;
 import com.axiora.spotgo.parking.application.ParkingOccupancyService;
 import com.axiora.spotgo.parking.domain.model.aggregates.Blueprint;
 import com.axiora.spotgo.parking.domain.model.aggregates.ClientReport;
@@ -15,6 +16,7 @@ import com.axiora.spotgo.parking.domain.model.commands.DeleteBlueprintCommand;
 import com.axiora.spotgo.parking.domain.model.commands.ReserveSpotCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateParkingRatingCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateParkingCommand;
+import com.axiora.spotgo.parking.domain.model.commands.UpdateBlueprintCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateClientReportStatusCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateReservationCommand;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateSpotStatusCommand;
@@ -42,8 +44,9 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
     private final ClientReportRepository clientReportRepository;
     private final UserAccountRepository userAccountRepository;
     private final ParkingOccupancyService parkingOccupancyService;
+    private final EmployeeSpotAssignmentService employeeSpotAssignmentService;
 
-    public ParkingCommandServiceImpl(ParkingRepository parkingRepository, BlueprintRepository blueprintRepository, DetectedSpotRepository detectedSpotRepository, ReservationRepository reservationRepository, ClientReportRepository clientReportRepository, UserAccountRepository userAccountRepository, ParkingOccupancyService parkingOccupancyService) {
+    public ParkingCommandServiceImpl(ParkingRepository parkingRepository, BlueprintRepository blueprintRepository, DetectedSpotRepository detectedSpotRepository, ReservationRepository reservationRepository, ClientReportRepository clientReportRepository, UserAccountRepository userAccountRepository, ParkingOccupancyService parkingOccupancyService, EmployeeSpotAssignmentService employeeSpotAssignmentService) {
         this.parkingRepository = parkingRepository;
         this.blueprintRepository = blueprintRepository;
         this.detectedSpotRepository = detectedSpotRepository;
@@ -51,6 +54,7 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
         this.clientReportRepository = clientReportRepository;
         this.userAccountRepository = userAccountRepository;
         this.parkingOccupancyService = parkingOccupancyService;
+        this.employeeSpotAssignmentService = employeeSpotAssignmentService;
     }
 
     @Override
@@ -70,6 +74,18 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
             throw new IllegalArgumentException("Parking does not exist");
         }
         var blueprint = new Blueprint(command.adminId(), command.parkingId(), command.name(), command.dataUrl());
+        return Optional.of(blueprintRepository.save(blueprint));
+    }
+
+    @Override
+    public Optional<Blueprint> handle(UpdateBlueprintCommand command) {
+        var blueprintOpt = blueprintRepository.findById(command.blueprintId());
+        if (blueprintOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        var blueprint = blueprintOpt.get();
+        blueprint = new Blueprint(blueprint.getAdminId(), blueprint.getParkingId(), command.name(), command.dataUrl());
+        blueprint.setId(command.blueprintId());
         return Optional.of(blueprintRepository.save(blueprint));
     }
 
@@ -189,10 +205,13 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
 
         var conflictingReservation = reservationRepository.findByParkingIdAndSpot(parkingId, spot).stream()
                 .filter(existing -> reservationIdToIgnore == null || !existing.getId().equals(reservationIdToIgnore))
-                .filter(existing -> existing.getStatus() != ReservationStatus.CANCELLED)
+                .filter(existing -> existing.getStatus() == ReservationStatus.ACTIVE)
                 .anyMatch(existing -> overlaps(startDate, endDate, existing.getStartDate(), existing.getEndDate()));
         if (conflictingReservation) {
             throw new IllegalArgumentException("Spot is not available for the selected time range");
+        }
+        if (employeeSpotAssignmentService.isSpotReservedForEmployee(parkingId, spot, startDate, endDate)) {
+            throw new IllegalArgumentException("Spot is reserved for an on-duty employee during the selected time range");
         }
     }
 

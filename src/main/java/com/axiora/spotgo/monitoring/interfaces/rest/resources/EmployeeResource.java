@@ -28,6 +28,9 @@ public record EmployeeResource(
         @Schema(description = "Shift end time", example = "17:00")
         String shiftEnd,
 
+        @Schema(description = "Assigned parking spot code", example = "A1")
+        String assignedSpot,
+
         @Schema(description = "Employee status", example = "on-duty",
                 allowableValues = {"on-duty", "off-duty"})
         String status

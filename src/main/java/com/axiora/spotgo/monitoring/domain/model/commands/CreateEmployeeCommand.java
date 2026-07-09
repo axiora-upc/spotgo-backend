@@ -11,6 +11,7 @@ public record CreateEmployeeCommand(
         String schedule,
         String shiftStart,
         String shiftEnd,
+        String assignedSpot,
         EmployeeStatus status
 ) {
 }

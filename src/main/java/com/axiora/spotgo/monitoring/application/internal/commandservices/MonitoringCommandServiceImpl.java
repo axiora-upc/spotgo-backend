@@ -24,7 +24,7 @@ public class MonitoringCommandServiceImpl implements MonitoringCommandService {
     public Optional<Employee> handle(CreateEmployeeCommand command) {
         var employee = new Employee(
                 command.parkingId(), command.firstName(), command.lastName(), command.role(),
-                command.schedule(), command.shiftStart(), command.shiftEnd(), command.status());
+                command.schedule(), command.shiftStart(), command.shiftEnd(), command.assignedSpot(), command.status());
         return Optional.of(employeeRepository.save(employee));
     }
 
@@ -35,7 +35,7 @@ public class MonitoringCommandServiceImpl implements MonitoringCommandService {
         var employee = employeeOpt.get();
         employee.update(
                 command.firstName(), command.lastName(), command.role(),
-                command.schedule(), command.shiftStart(), command.shiftEnd(), command.status());
+                command.schedule(), command.shiftStart(), command.shiftEnd(), command.assignedSpot(), command.status());
         return Optional.of(employeeRepository.save(employee));
     }
 
