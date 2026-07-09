@@ -25,12 +25,12 @@ public record CreateReservationResource(
         String spot,
 
         @Schema(description = "Reservation start date and time")
-        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "America/Lima")
         @NotNull
         LocalDateTime startDate,
 
         @Schema(description = "Reservation end date and time")
-        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "America/Lima")
         @NotNull
         LocalDateTime endDate,
 

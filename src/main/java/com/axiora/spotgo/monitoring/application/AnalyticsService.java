@@ -304,7 +304,7 @@ public class AnalyticsService {
         return switch (status) {
             case MAINTENANCE -> "maintenance";
             case OCCUPIED, RESERVED -> "occupied";
-            case FREE -> "available";
+            case AVAILABLE -> "available";
         };
     }
 

@@ -1,6 +1,7 @@
 package com.axiora.spotgo.parking.application;
 
 import com.axiora.spotgo.parking.domain.model.valueobjects.ReservationStatus;
+import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ParkingRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ReservationRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -13,13 +14,16 @@ public class ReservationLifecycleService {
 
     private final ReservationRepository reservationRepository;
     private final ParkingOccupancyService parkingOccupancyService;
+    private final ParkingRepository parkingRepository;
     private final Clock clock;
 
     public ReservationLifecycleService(ReservationRepository reservationRepository,
                                        ParkingOccupancyService parkingOccupancyService,
+                                       ParkingRepository parkingRepository,
                                        Clock clock) {
         this.reservationRepository = reservationRepository;
         this.parkingOccupancyService = parkingOccupancyService;
+        this.parkingRepository = parkingRepository;
         this.clock = clock;
     }
 
@@ -28,16 +32,16 @@ public class ReservationLifecycleService {
     public void reconcileExpiredReservations() {
         var now = LocalDateTime.now(clock);
         var expiredReservations = reservationRepository.findByStatusAndEndDateBefore(ReservationStatus.ACTIVE, now);
-        if (expiredReservations.isEmpty()) {
-            return;
-        }
-
         var affectedParkingIds = new java.util.HashSet<String>();
         for (var reservation : expiredReservations) {
             reservation.updateStatus(ReservationStatus.COMPLETED);
             affectedParkingIds.add(reservation.getParkingId());
         }
-        reservationRepository.saveAll(expiredReservations);
+        if (!expiredReservations.isEmpty()) {
+            reservationRepository.saveAll(expiredReservations);
+        }
+
+        parkingRepository.findAll().forEach(parking -> affectedParkingIds.add(parking.getId()));
 
         for (var parkingId : affectedParkingIds) {
             parkingOccupancyService.reconcileParking(parkingId, now);

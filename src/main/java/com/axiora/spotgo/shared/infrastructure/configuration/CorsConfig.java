@@ -13,10 +13,15 @@ public class CorsConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         var config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of(
+        var origins = new java.util.ArrayList<>(List.of(
                 "http://localhost:4200",
                 "https://spotgo-frontend.vercel.app"
         ));
+        String extraOrigin = System.getenv("CORS_ALLOWED_ORIGIN");
+        if (extraOrigin != null && !extraOrigin.isBlank()) {
+            origins.add(extraOrigin);
+        }
+        config.setAllowedOriginPatterns(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

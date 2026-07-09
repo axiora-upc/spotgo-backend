@@ -35,6 +35,9 @@ public class Employee extends UuidIdentifiedAggregateRoot<Employee> {
     @Column(nullable = false)
     private String shiftEnd;
 
+    @Column(name = "assignedSpot")
+    private String assignedSpot;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private EmployeeStatus status;
@@ -43,7 +46,7 @@ public class Employee extends UuidIdentifiedAggregateRoot<Employee> {
     }
 
     public Employee(String parkingId, String firstName, String lastName, EmployeeRole role,
-                    String schedule, String shiftStart, String shiftEnd, EmployeeStatus status) {
+                    String schedule, String shiftStart, String shiftEnd, String assignedSpot, EmployeeStatus status) {
         this.parkingId = parkingId;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -51,17 +54,19 @@ public class Employee extends UuidIdentifiedAggregateRoot<Employee> {
         this.schedule = schedule;
         this.shiftStart = shiftStart;
         this.shiftEnd = shiftEnd;
+        this.assignedSpot = assignedSpot;
         this.status = status;
     }
 
     public void update(String firstName, String lastName, EmployeeRole role,
-                       String schedule, String shiftStart, String shiftEnd, EmployeeStatus status) {
+                       String schedule, String shiftStart, String shiftEnd, String assignedSpot, EmployeeStatus status) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.role = role;
         this.schedule = schedule;
         this.shiftStart = shiftStart;
         this.shiftEnd = shiftEnd;
+        this.assignedSpot = assignedSpot;
         this.status = status;
     }
 }

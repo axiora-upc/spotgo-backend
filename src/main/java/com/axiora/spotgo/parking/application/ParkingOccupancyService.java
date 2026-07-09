@@ -1,5 +1,6 @@
 package com.axiora.spotgo.parking.application;
 
+import com.axiora.spotgo.monitoring.application.EmployeeSpotAssignmentService;
 import com.axiora.spotgo.parking.domain.model.valueobjects.ReservationStatus;
 import com.axiora.spotgo.parking.domain.model.valueobjects.SpotStatus;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.DetectedSpotRepository;
@@ -17,13 +18,16 @@ public class ParkingOccupancyService {
     private final ReservationRepository reservationRepository;
     private final DetectedSpotRepository detectedSpotRepository;
     private final ParkingRepository parkingRepository;
+    private final EmployeeSpotAssignmentService employeeSpotAssignmentService;
 
     public ParkingOccupancyService(ReservationRepository reservationRepository,
                                    DetectedSpotRepository detectedSpotRepository,
-                                   ParkingRepository parkingRepository) {
+                                   ParkingRepository parkingRepository,
+                                   EmployeeSpotAssignmentService employeeSpotAssignmentService) {
         this.reservationRepository = reservationRepository;
         this.detectedSpotRepository = detectedSpotRepository;
         this.parkingRepository = parkingRepository;
+        this.employeeSpotAssignmentService = employeeSpotAssignmentService;
     }
 
     @Transactional
@@ -32,6 +36,7 @@ public class ParkingOccupancyService {
                 .filter(reservation -> !reservation.getStartDate().isAfter(now) && reservation.getEndDate().isAfter(now))
                 .map(reservation -> reservation.getSpot())
                 .collect(Collectors.toSet());
+        var reservedSpotIds = employeeSpotAssignmentService.getReservedSpotCodes(parkingId, now);
 
         var detectedSpots = detectedSpotRepository.findByParkingId(parkingId);
         boolean spotsChanged = false;
@@ -44,8 +49,10 @@ public class ParkingOccupancyService {
                 continue;
             }
 
-            var shouldBeOccupied = occupiedSpotIds.contains(toSpotId(spot.getRow(), spot.getCol()));
-            var nextStatus = shouldBeOccupied ? SpotStatus.OCCUPIED : SpotStatus.FREE;
+            var spotCode = toSpotId(spot.getRow(), spot.getCol());
+            var shouldBeOccupied = occupiedSpotIds.contains(spotCode);
+            var shouldBeReserved = reservedSpotIds.contains(spotCode);
+            var nextStatus = shouldBeOccupied ? SpotStatus.OCCUPIED : shouldBeReserved ? SpotStatus.RESERVED : SpotStatus.AVAILABLE;
             if (spot.getStatus() != nextStatus) {
                 spot.updateStatus(nextStatus);
                 spotsChanged = true;
@@ -57,25 +64,24 @@ public class ParkingOccupancyService {
         }
 
         parkingRepository.findById(parkingId).ifPresent(parking -> {
-            int availableSpaces = computeAvailableSpaces(parkingId, detectedSpots, occupiedSpotIds);
+            int availableSpaces = computeAvailableSpaces(parkingId, detectedSpots);
             parking.updateStats(null, availableSpaces, null, null);
             parkingRepository.save(parking);
         });
     }
 
     private int computeAvailableSpaces(String parkingId,
-                                       java.util.List<com.axiora.spotgo.parking.domain.model.aggregates.DetectedSpot> detectedSpots,
-                                       Set<String> occupiedSpotIds) {
+                                       java.util.List<com.axiora.spotgo.parking.domain.model.aggregates.DetectedSpot> detectedSpots) {
         long freeDetected = detectedSpots.stream()
                 .filter(spot -> spot.getStatus() != SpotStatus.MAINTENANCE)
-                .filter(spot -> spot.getStatus() == SpotStatus.FREE)
+                .filter(spot -> spot.getStatus() == SpotStatus.AVAILABLE)
                 .count();
         if (!detectedSpots.isEmpty()) {
             return (int) freeDetected;
         }
 
         return parkingRepository.findById(parkingId)
-                .map(parking -> Math.max(0, parking.getTotalSpaces() - occupiedSpotIds.size()))
+                .map(parking -> Math.max(0, parking.getTotalSpaces()))
                 .orElse(0);
     }
 

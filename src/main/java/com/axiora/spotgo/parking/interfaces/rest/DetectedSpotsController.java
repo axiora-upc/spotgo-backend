@@ -1,7 +1,9 @@
 package com.axiora.spotgo.parking.interfaces.rest;
 
 import com.axiora.spotgo.iam.infrastructure.security.SpotgoUserPrincipal;
+import com.axiora.spotgo.monitoring.application.EmployeeSpotAssignmentService;
 import com.axiora.spotgo.parking.domain.model.aggregates.DetectedSpot;
+import com.axiora.spotgo.parking.application.ParkingOccupancyService;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateSpotStatusCommand;
 import com.axiora.spotgo.parking.domain.model.queries.GetAllDetectedSpotsQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetDetectedSpotsByParkingIdQuery;
@@ -36,13 +38,19 @@ public class DetectedSpotsController {
     private final ParkingQueryService parkingQueryService;
     private final DetectedSpotRepository detectedSpotRepository;
     private final AuthorizationService authorizationService;
+    private final EmployeeSpotAssignmentService employeeSpotAssignmentService;
+    private final ParkingOccupancyService parkingOccupancyService;
 
     public DetectedSpotsController(ParkingCommandService parkingCommandService, ParkingQueryService parkingQueryService,
-                                   DetectedSpotRepository detectedSpotRepository, AuthorizationService authorizationService) {
+                                   DetectedSpotRepository detectedSpotRepository, AuthorizationService authorizationService,
+                                   EmployeeSpotAssignmentService employeeSpotAssignmentService,
+                                   ParkingOccupancyService parkingOccupancyService) {
         this.parkingCommandService = parkingCommandService;
         this.parkingQueryService = parkingQueryService;
         this.detectedSpotRepository = detectedSpotRepository;
         this.authorizationService = authorizationService;
+        this.employeeSpotAssignmentService = employeeSpotAssignmentService;
+        this.parkingOccupancyService = parkingOccupancyService;
     }
 
     @GetMapping
@@ -54,21 +62,37 @@ public class DetectedSpotsController {
             @RequestParam(required = false) String parkingId,
             @RequestParam(required = false) String blueprintId) {
         List<DetectedSpot> spots;
+        String parkingScope = parkingId;
         if (authorizationService.isAdmin(principal)) {
             var scopedParkingId = authorizationService.requireAdminParkingId(principal);
             if (parkingId != null && !parkingId.equals(scopedParkingId)) {
                 throw new org.springframework.security.access.AccessDeniedException("Requested parking is outside authenticated scope");
             }
-            spots = parkingQueryService.handle(new GetDetectedSpotsByParkingIdQuery(scopedParkingId));
+            parkingScope = scopedParkingId;
+            parkingOccupancyService.reconcileParking(scopedParkingId, java.time.LocalDateTime.now());
+            if (blueprintId != null) {
+                spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
+            } else {
+                spots = parkingQueryService.handle(new GetDetectedSpotsByParkingIdQuery(scopedParkingId));
+            }
         } else if (parkingId != null) {
+            parkingOccupancyService.reconcileParking(parkingId, java.time.LocalDateTime.now());
             spots = parkingQueryService.handle(new GetDetectedSpotsByParkingIdQuery(parkingId));
         } else if (blueprintId != null) {
             spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
+            parkingScope = spots.isEmpty() ? null : spots.getFirst().getParkingId();
+            if (parkingScope != null) {
+                parkingOccupancyService.reconcileParking(parkingScope, java.time.LocalDateTime.now());
+                spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
+            }
         } else {
             spots = parkingQueryService.handle(new GetAllDetectedSpotsQuery());
         }
+        var reservedEmployees = parkingScope == null
+                ? java.util.Map.<String, com.axiora.spotgo.monitoring.domain.model.aggregates.Employee>of()
+                : employeeSpotAssignmentService.getReservedEmployeesBySpot(parkingScope, java.time.LocalDateTime.now());
         var resources = spots.stream()
-                .map(this::toResource)
+                .map(spot -> toResource(spot, reservedEmployees.get(toSpotCode(spot))))
                 .toList();
         return ResponseEntity.ok(resources);
     }
@@ -82,8 +106,16 @@ public class DetectedSpotsController {
     })
     public ResponseEntity<List<DetectedSpotResource>> getSpotsByBlueprintId(@PathVariable String blueprintId) {
         var spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
+        var parkingId = spots.isEmpty() ? null : spots.getFirst().getParkingId();
+        if (parkingId != null) {
+            parkingOccupancyService.reconcileParking(parkingId, java.time.LocalDateTime.now());
+            spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
+        }
+        var reservedEmployees = parkingId == null
+                ? java.util.Map.<String, com.axiora.spotgo.monitoring.domain.model.aggregates.Employee>of()
+                : employeeSpotAssignmentService.getReservedEmployeesBySpot(parkingId, java.time.LocalDateTime.now());
         var resources = spots.stream()
-                .map(this::toResource)
+                .map(spot -> toResource(spot, reservedEmployees.get(toSpotCode(spot))))
                 .toList();
         return ResponseEntity.ok(resources);
     }
@@ -133,10 +165,10 @@ public class DetectedSpotsController {
             return ResponseEntity.badRequest().build();
         }
         var createdSpot = spotOptional.get();
-        return new ResponseEntity<>(toResource(createdSpot), HttpStatus.CREATED);
+        return new ResponseEntity<>(toResource(createdSpot, null), HttpStatus.CREATED);
     }
 
-    private DetectedSpotResource toResource(DetectedSpot spot) {
+    private DetectedSpotResource toResource(DetectedSpot spot, com.axiora.spotgo.monitoring.domain.model.aggregates.Employee assignedEmployee) {
         return new DetectedSpotResource(
                 spot.getId(),
                 spot.getCode(),
@@ -148,7 +180,16 @@ public class DetectedSpotsController {
                 spot.getYPct(),
                 spot.getWPct(),
                 spot.getHPct(),
+                assignedEmployee == null ? null : assignedEmployee.getId(),
+                assignedEmployee == null ? null : assignedEmployee.getFirstName() + " " + assignedEmployee.getLastName(),
                 spot.getStatus().getDisplayName()
         );
+    }
+
+    private String toSpotCode(DetectedSpot spot) {
+        if (spot.getRow() == null || spot.getCol() == null) {
+            return null;
+        }
+        return "%s%d".formatted(String.valueOf((char) ('A' + spot.getRow())), spot.getCol() + 1);
     }
 }

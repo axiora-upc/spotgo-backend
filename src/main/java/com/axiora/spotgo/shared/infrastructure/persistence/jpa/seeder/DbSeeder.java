@@ -489,6 +489,7 @@ public class DbSeeder implements CommandLineRunner {
                     node.get("schedule").asText(),
                     node.get("shiftStart").asText(),
                     node.get("shiftEnd").asText(),
+                    nullableText(node, "assignedSpot"),
                     EmployeeStatus.fromDisplayName(node.get("status").asText())
             );
             employee.setId(node.get("id").asText());
