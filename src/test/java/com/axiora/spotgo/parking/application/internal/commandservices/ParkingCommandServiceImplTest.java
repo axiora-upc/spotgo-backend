@@ -100,6 +100,8 @@ class ParkingCommandServiceImplTest {
                 null);
         when(userAccountRepository.existsById("client-1")).thenReturn(true);
         when(parkingRepository.existsById("parking-1")).thenReturn(true);
+        var parking = mock(com.axiora.spotgo.parking.domain.model.aggregates.Parking.class);
+        when(parkingRepository.findByIdForUpdate("parking-1")).thenReturn(Optional.of(parking));
         when(detectedSpotRepository.findByParkingIdAndRowAndCol("parking-1", 1, 4))
                 .thenReturn(List.of(new DetectedSpot(1, "bp-1", "parking-1", 1, 4, 0.1, 0.1, 0.1, 0.1, SpotStatus.AVAILABLE)));
         when(reservationRepository.findByParkingIdAndSpot("parking-1", "B5")).thenReturn(List.of(existing));
