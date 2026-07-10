@@ -181,7 +181,6 @@ public class DbSeeder implements CommandLineRunner {
                     node.get("email").asText(),
                     passwordEncoder.encode(node.path("password").asText("Password123!")),
                     nullableText(node, "phone") == null ? "" : nullableText(node, "phone"),
-                    nullableText(node, "city") == null ? "" : nullableText(node, "city"),
                     UserRole.fromDisplayName(node.path("role").asText("client"))
             );
             user.setId(node.get("id").asText());

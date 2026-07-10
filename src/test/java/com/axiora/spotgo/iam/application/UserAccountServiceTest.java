@@ -84,7 +84,7 @@ class UserAccountServiceTest {
 
     @Test
     void requestPasswordResetPersistsCodeAndSendsEmailForKnownUser() {
-        var user = new UserAccount("Ana", "Diaz", "client@spotgo.com", passwordEncoder.encode("Password123!"), "", "", UserRole.CLIENT);
+        var user = new UserAccount("Ana", "Diaz", "client@spotgo.com", passwordEncoder.encode("Password123!"), "", UserRole.CLIENT);
         when(userAccountRepository.findByEmail("client@spotgo.com")).thenReturn(Optional.of(user));
         when(passwordResetCodeRepository.findByEmail("client@spotgo.com")).thenReturn(Optional.empty());
 
@@ -114,7 +114,7 @@ class UserAccountServiceTest {
 
     @Test
     void confirmPasswordResetUpdatesPasswordAndMarksCodeUsed() {
-        var user = new UserAccount("Ana", "Diaz", "client@spotgo.com", passwordEncoder.encode("OldPassword123!"), "", "", UserRole.CLIENT);
+        var user = new UserAccount("Ana", "Diaz", "client@spotgo.com", passwordEncoder.encode("OldPassword123!"), "", UserRole.CLIENT);
         var resetCode = new PasswordResetCode("client@spotgo.com", passwordEncoder.encode("123456"), Instant.parse("2026-07-07T10:30:30Z"), Instant.parse("2026-07-07T10:15:30Z"));
         when(passwordResetCodeRepository.findByEmail("client@spotgo.com")).thenReturn(Optional.of(resetCode));
         when(userAccountRepository.findByEmail("client@spotgo.com")).thenReturn(Optional.of(user));
@@ -132,14 +132,14 @@ class UserAccountServiceTest {
         var freePlan = new ClientPlan("plan-1", PlanType.FREE, "Free Plan", 0.0,
                 "Basic plan", 3, 0.0, List.of("feature1"));
         var savedUser = new UserAccount("Ana", "Diaz", "new@spotgo.com",
-                passwordEncoder.encode("Password123!"), "", "", UserRole.CLIENT);
+                passwordEncoder.encode("Password123!"), "", UserRole.CLIENT);
 
         when(userAccountRepository.existsByEmail("new@spotgo.com")).thenReturn(false);
         when(userAccountRepository.save(any(UserAccount.class))).thenReturn(savedUser);
         when(clientPlanRepository.findAll()).thenReturn(List.of(freePlan));
         when(jwtTokenService.generateToken(any())).thenReturn("token");
 
-        service.signUpClient("Ana", "Diaz", "new@spotgo.com", "Password123!");
+        service.signUpClient("Ana", "Diaz", "+51 999 111 222", "new@spotgo.com", "Password123!");
 
         var subCaptor = ArgumentCaptor.forClass(Subscription.class);
         verify(subscriptionRepository).save(subCaptor.capture());

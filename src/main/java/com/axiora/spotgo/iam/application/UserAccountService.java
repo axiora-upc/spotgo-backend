@@ -74,13 +74,13 @@ public class UserAccountService {
         return toAuthenticated(user, jwtTokenService.generateToken(user));
     }
 
-    public AuthenticatedUserResource signUpClient(String firstName, String lastName, String email, String password) {
+    public AuthenticatedUserResource signUpClient(String firstName, String lastName, String phone, String email, String password) {
         var normalizedEmail = UserAccount.normalizeEmail(email);
         if (userAccountRepository.existsByEmail(normalizedEmail)) {
             throw new IllegalArgumentException("iam.errors.email-taken");
         }
         PasswordPolicy.validate(password);
-        var user = new UserAccount(firstName, lastName, normalizedEmail, passwordEncoder.encode(password), "", "", UserRole.CLIENT);
+        var user = new UserAccount(firstName, lastName, normalizedEmail, passwordEncoder.encode(password), phone, UserRole.CLIENT);
         var savedUser = userAccountRepository.save(user);
         clientPlanRepository.findAll().stream()
                 .filter(plan -> plan.getType() == PlanType.FREE)
@@ -164,10 +164,10 @@ public class UserAccountService {
                 .orElseThrow(() -> new IllegalArgumentException("iam.errors.generic")));
     }
 
-    public UserResource updateUser(String userId, String firstName, String lastName, String phone, String city) {
+    public UserResource updateUser(String userId, String firstName, String lastName, String phone) {
         var user = userAccountRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("iam.errors.generic"));
-        user.updateProfile(firstName, lastName, phone, city);
+        user.updateProfile(firstName, lastName, phone);
         return toResource(userAccountRepository.save(user));
     }
 
@@ -179,7 +179,6 @@ public class UserAccountService {
                 user.getLastName(),
                 user.getEmail(),
                 user.getPhone(),
-                user.getCity(),
                 user.getRole().name().toLowerCase(),
                 parking != null ? parking.getId() : null,
                 parking != null ? parking.getName() : ""
@@ -190,7 +189,7 @@ public class UserAccountService {
         var resource = toResource(user);
         return new AuthenticatedUserResource(
                 resource.id(), resource.firstName(), resource.lastName(), resource.email(),
-                resource.phone(), resource.city(), resource.role(), resource.parkingId(), resource.parkingName(), token
+                resource.phone(), resource.role(), resource.parkingId(), resource.parkingName(), token
         );
     }
 

@@ -93,10 +93,12 @@ public class Parking extends UuidIdentifiedAggregateRoot<Parking> {
         this.rating = rating;
     }
 
-    public void updateStats(Integer totalSpaces, Integer availableSpaces, Integer totalFloors, Double rating) {
+    public void updateStats(Integer totalSpaces, Integer availableSpaces, Integer totalFloors, String city, Double rating, Double pricePerHour) {
         if (totalSpaces != null) this.totalSpaces = totalSpaces;
         if (availableSpaces != null) this.availableSpaces = availableSpaces;
         if (totalFloors != null) this.totalFloors = totalFloors;
+        if (city != null) this.city = city;
         if (rating != null) this.rating = rating;
+        if (pricePerHour != null) this.pricePerHour = pricePerHour;
     }
 }

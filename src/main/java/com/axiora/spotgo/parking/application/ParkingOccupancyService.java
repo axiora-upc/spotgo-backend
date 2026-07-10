@@ -65,7 +65,7 @@ public class ParkingOccupancyService {
 
         parkingRepository.findById(parkingId).ifPresent(parking -> {
             int availableSpaces = computeAvailableSpaces(parkingId, detectedSpots);
-            parking.updateStats(null, availableSpaces, null, null);
+            parking.updateStats(null, availableSpaces, null, null, null, null);
             parkingRepository.save(parking);
         });
     }

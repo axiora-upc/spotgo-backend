@@ -21,6 +21,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +36,8 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/reservations")
 @Tag(name = "Reservations", description = "Endpoints for managing parking spot reservations")
 public class ReservationsController {
+
+    private static final ZoneId LIMA_ZONE = ZoneId.of("America/Lima");
 
     private final ParkingCommandService parkingCommandService;
     private final ParkingQueryService parkingQueryService;
@@ -61,8 +66,8 @@ public class ReservationsController {
                 principal.getUserId(),
                 resource.parkingId(),
                 resource.spot(),
-                resource.startDate(),
-                resource.endDate(),
+                toLimaLocalDateTime(resource.startDate()),
+                toLimaLocalDateTime(resource.endDate()),
                 null,
                 null,
                 null
@@ -119,7 +124,7 @@ public class ReservationsController {
         ReservationStatus status = resource.status() == null ? null : ReservationStatus.fromDisplayName(resource.status());
         var reservation = parkingCommandService.handle(new UpdateReservationCommand(
                 reservationId,
-                resource.endDate(),
+                resource.endDate() == null ? null : toLimaLocalDateTime(resource.endDate()),
                 authorizationService.isAdmin(principal) ? resource.amount() : null,
                 authorizationService.isAdmin(principal) ? resource.baseAmount() : null,
                 resource.rating(),
@@ -136,12 +141,20 @@ public class ReservationsController {
                 reservation.getParkingId(),
                 reservation.getCode(),
                 reservation.getSpot(),
-                reservation.getStartDate(),
-                reservation.getEndDate(),
+                toLimaOffsetDateTime(reservation.getStartDate()),
+                toLimaOffsetDateTime(reservation.getEndDate()),
                 reservation.getStatus().name().toLowerCase(),
                 reservation.getAmount(),
                 reservation.getBaseAmount(),
                 reservation.getRating()
         );
+    }
+
+    private LocalDateTime toLimaLocalDateTime(OffsetDateTime value) {
+        return value.atZoneSameInstant(LIMA_ZONE).toLocalDateTime();
+    }
+
+    private OffsetDateTime toLimaOffsetDateTime(LocalDateTime value) {
+        return value.atZone(LIMA_ZONE).toOffsetDateTime();
     }
 }

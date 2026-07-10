@@ -200,7 +200,7 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
             return Optional.empty();
         }
         var parking = parkingOpt.get();
-        parking.updateStats(command.totalSpaces(), command.availableSpaces(), command.totalFloors(), command.rating());
+        parking.updateStats(command.totalSpaces(), command.availableSpaces(), command.totalFloors(), command.city(), command.rating(), command.pricePerHour());
         return Optional.of(parkingRepository.save(parking));
     }
 

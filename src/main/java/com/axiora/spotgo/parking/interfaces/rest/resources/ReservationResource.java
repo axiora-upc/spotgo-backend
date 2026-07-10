@@ -1,9 +1,8 @@
 package com.axiora.spotgo.parking.interfaces.rest.resources;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record ReservationResource(
         @Schema(description = "Unique identifier of the reservation", example = "1")
@@ -22,12 +21,10 @@ public record ReservationResource(
         String spot,
 
         @Schema(description = "Reservation start date and time")
-        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "America/Lima")
-        LocalDateTime startDate,
+        OffsetDateTime startDate,
 
         @Schema(description = "Reservation end date and time")
-        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "America/Lima")
-        LocalDateTime endDate,
+        OffsetDateTime endDate,
 
         @Schema(description = "Reservation status", example = "active",
                 allowableValues = {"active", "completed", "cancelled"})

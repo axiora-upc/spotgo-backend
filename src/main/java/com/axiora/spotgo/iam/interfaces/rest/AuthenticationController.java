@@ -49,7 +49,7 @@ public class AuthenticationController {
     })
     public ResponseEntity<?> signUp(@Valid @RequestBody SignUpResource request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(userAccountService.signUpClient(request.firstName(), request.lastName(), request.email(), request.password()));
+                .body(userAccountService.signUpClient(request.firstName(), request.lastName(), request.phone(), request.email(), request.password()));
     }
 
     @PostMapping("/password-reset/request")

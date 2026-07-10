@@ -29,9 +29,6 @@ public class UserAccount extends UuidIdentifiedAggregateRoot<UserAccount> {
     @Column(nullable = false)
     private String phone;
 
-    @Column(nullable = false)
-    private String city;
-
     @Convert(converter = UserRoleConverter.class)
     @Column(nullable = false)
     private UserRole role;
@@ -42,21 +39,19 @@ public class UserAccount extends UuidIdentifiedAggregateRoot<UserAccount> {
     protected UserAccount() {
     }
 
-    public UserAccount(String firstName, String lastName, String email, String passwordHash, String phone, String city, UserRole role) {
+    public UserAccount(String firstName, String lastName, String email, String passwordHash, String phone, UserRole role) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = normalizeEmail(email);
         this.passwordHash = passwordHash;
         this.phone = phone == null ? "" : phone;
-        this.city = city == null ? "" : city;
         this.role = role;
     }
 
-    public void updateProfile(String firstName, String lastName, String phone, String city) {
+    public void updateProfile(String firstName, String lastName, String phone) {
         if (firstName != null) this.firstName = firstName;
         if (lastName != null) this.lastName = lastName;
         if (phone != null) this.phone = phone;
-        if (city != null) this.city = city;
     }
 
     public void updatePasswordHash(String passwordHash) {

@@ -17,6 +17,7 @@ import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.Res
 import com.axiora.spotgo.parking.interfaces.rest.resources.CreateReservationResource;
 import com.axiora.spotgo.shared.application.security.AuthorizationService;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,15 +53,15 @@ class ReservationsControllerTest {
         var resource = new CreateReservationResource(
                 "parking-1",
                 "B5",
-                LocalDateTime.of(2026, 7, 7, 10, 0),
-                LocalDateTime.of(2026, 7, 7, 11, 0));
+                OffsetDateTime.parse("2026-07-07T10:00:00.000-05:00"),
+                OffsetDateTime.parse("2026-07-07T11:00:00.000-05:00"));
         when(parkingCommandService.handle(any(ReserveSpotCommand.class))).thenReturn(Optional.of(new Reservation(
                 "client-auth",
                 "parking-1",
                 "SPG-001",
                 "B5",
-                resource.startDate(),
-                resource.endDate(),
+                LocalDateTime.of(2026, 7, 7, 10, 0),
+                LocalDateTime.of(2026, 7, 7, 11, 0),
                 10.0,
                 10.0,
                 null)));
@@ -70,6 +71,33 @@ class ReservationsControllerTest {
         var commandCaptor = ArgumentCaptor.forClass(ReserveSpotCommand.class);
         verify(parkingCommandService).handle(commandCaptor.capture());
         assertEquals("client-auth", commandCaptor.getValue().clientId());
+    }
+
+    @Test
+    void reserveSpotConvertsOffsetDateTimesToLimaLocalTime() {
+        var principal = new SpotgoUserPrincipal("client-auth", "client@spotgo.com", "pw", UserRole.CLIENT, 0L);
+        var resource = new CreateReservationResource(
+                "parking-1",
+                "A1",
+                OffsetDateTime.parse("2026-07-07T12:00:00.000-05:00"),
+                OffsetDateTime.parse("2026-07-07T13:30:00.000-05:00"));
+        when(parkingCommandService.handle(any(ReserveSpotCommand.class))).thenReturn(Optional.of(new Reservation(
+                "client-auth",
+                "parking-1",
+                "SPG-001",
+                "A1",
+                LocalDateTime.of(2026, 7, 7, 12, 0),
+                LocalDateTime.of(2026, 7, 7, 13, 30),
+                10.0,
+                10.0,
+                null)));
+
+        controller.reserveSpot(principal, resource);
+
+        var commandCaptor = ArgumentCaptor.forClass(ReserveSpotCommand.class);
+        verify(parkingCommandService).handle(commandCaptor.capture());
+        assertEquals(LocalDateTime.of(2026, 7, 7, 12, 0), commandCaptor.getValue().startDate());
+        assertEquals(LocalDateTime.of(2026, 7, 7, 13, 30), commandCaptor.getValue().endDate());
     }
 
     @Test

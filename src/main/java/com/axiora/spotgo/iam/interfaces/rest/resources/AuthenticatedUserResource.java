@@ -6,7 +6,6 @@ public record AuthenticatedUserResource(
         String lastName,
         String email,
         String phone,
-        String city,
         String role,
         String parkingId,
         String parkingName,
