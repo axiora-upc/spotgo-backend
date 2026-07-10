@@ -6,6 +6,7 @@ import com.axiora.spotgo.profiles.domain.model.aggregates.Vehicle;
 import com.axiora.spotgo.profiles.domain.model.commands.CreateVehicleCommand;
 import com.axiora.spotgo.profiles.domain.model.commands.DeleteVehicleCommand;
 import com.axiora.spotgo.profiles.domain.model.commands.UpdateVehicleCommand;
+import com.axiora.spotgo.profiles.domain.model.queries.GetAllVehiclesQuery;
 import com.axiora.spotgo.profiles.domain.model.queries.GetVehiclesByClientIdQuery;
 import com.axiora.spotgo.iam.infrastructure.security.SpotgoUserPrincipal;
 import com.axiora.spotgo.profiles.infrastructure.persistence.jpa.repositories.VehicleRepository;
@@ -56,12 +57,18 @@ public class VehiclesController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('CLIENT')")
+    @PreAuthorize("hasAnyRole('ADMIN','CLIENT')")
     @Operation(summary = "Get vehicles", description = "Returns all vehicles, optionally filtered by client identifier.")
     @ApiResponse(responseCode = "200", description = "Vehicles returned successfully",
             content = @Content(schema = @Schema(implementation = VehicleResource.class)))
     public ResponseEntity<List<VehicleResource>> getVehicles(@AuthenticationPrincipal SpotgoUserPrincipal principal,
-                                                             @RequestParam(required = false) String clientId) {
+                                                              @RequestParam(required = false) String clientId) {
+        if (authorizationService.isAdmin(principal)) {
+            var vehicles = clientId == null || clientId.isBlank()
+                    ? profilesQueryService.handle(new GetAllVehiclesQuery())
+                    : profilesQueryService.handle(new GetVehiclesByClientIdQuery(clientId));
+            return ResponseEntity.ok(vehicles.stream().map(this::toResource).toList());
+        }
         if (clientId != null && !clientId.equals(principal.getUserId())) {
             throw new AccessDeniedException("Requested client is outside authenticated scope");
         }
@@ -78,7 +85,10 @@ public class VehiclesController {
             @ApiResponse(responseCode = "400", description = "Invalid input", content = @Content)
     })
     public ResponseEntity<VehicleResource> createVehicle(@AuthenticationPrincipal SpotgoUserPrincipal principal,
-                                                         @Valid @RequestBody CreateVehicleResource resource) {
+                                                          @Valid @RequestBody CreateVehicleResource resource) {
+        if (!vehicleRepository.findAllByClientId(principal.getUserId()).isEmpty()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
         var vehicle = profilesCommandService.handle(new CreateVehicleCommand(
                 principal.getUserId(), resource.licensePlate(), resource.vehicleType(), resource.brand(), resource.model()));
         return vehicle.map(value -> ResponseEntity.status(HttpStatus.CREATED).body(toResource(value)))

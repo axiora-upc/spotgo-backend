@@ -110,7 +110,9 @@ public class ParkingsController {
                 resource.totalSpaces(),
                 resource.availableSpaces(),
                 resource.totalFloors(),
-                resource.rating()));
+                resource.city(),
+                resource.rating(),
+                resource.pricePerHour()));
         return updatedParkingOpt.map(parking -> ResponseEntity.ok(toResource(parking)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }

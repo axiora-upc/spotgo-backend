@@ -1,14 +1,12 @@
 package com.axiora.spotgo.parking.interfaces.rest.resources;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record UpdateReservationResource(
         @Schema(description = "Updated reservation end date and time")
-        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "America/Lima")
-        LocalDateTime endDate,
+        OffsetDateTime endDate,
         @Schema(description = "Updated total amount", example = "12.5")
         Double amount,
         @Schema(description = "Updated base amount", example = "10.0")

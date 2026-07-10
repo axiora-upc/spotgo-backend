@@ -6,7 +6,6 @@
             "lastName": "Quiroz Montoya",
             "email": "piero.quiroz@spotgo.com",
             "phone": "+51 999 111 222",
-            "city": "Lima",
             "password": "Password123!",
             "role": "admin"
         },
@@ -16,7 +15,6 @@
             "lastName": "Quispe Mamani",
             "email": "juan.quispe@spotgo.com",
             "phone": "+51 999 333 444",
-            "city": "Lima",
             "password": "Password123!",
             "role": "admin"
         },
@@ -26,7 +24,6 @@
             "lastName": "García López",
             "email": "maria.garcia@gmail.com",
             "phone": "+51 988 777 666",
-            "city": "Lima",
             "password": "Password123!",
             "role": "client"
         },
@@ -36,7 +33,6 @@
             "lastName": "Mendoza Torres",
             "email": "carlos.mendoza@gmail.com",
             "phone": "+51 977 555 444",
-            "city": "Lima",
             "password": "Password123!",
             "role": "client"
         },
@@ -46,7 +42,6 @@
             "lastName": "Vargas Ponce",
             "email": "ricardo.vargas@spotgo.com",
             "phone": "+51 999 555 666",
-            "city": "Lima",
             "password": "Password123!",
             "role": "admin"
         },
@@ -56,7 +51,6 @@
             "lastName": "Fernández Rojas",
             "email": "lucia.fernandez@spotgo.com",
             "phone": "+51 999 777 888",
-            "city": "Lima",
             "password": "Password123!",
             "role": "admin"
         }
@@ -92,11 +86,15 @@
             "availableSpaces": 27,
             "totalFloors": 1,
             "averageOccupancy": 72.5,
+            "occupancyTrendPercent": 5.2,
             "peakHour": "12:00",
             "totalRevenue": 2800,
             "systemStatus": "active",
             "rating": 3,
-            "pricePerHour": 2.8
+            "pricePerHour": 2.8,
+            "revenueTrendPercent": 8.6,
+            "totalCapacity": 112,
+            "efficiencyIndex": 92.6
         },
         {
             "id": "2e9db00f-ad00-4077-b991-1edfd42f1ed8",
@@ -3074,22 +3072,6 @@
             "vehicleType": "SUV / Pickup",
             "brand": "Hyundai",
             "model": "Tucson"
-        },
-        {
-            "id": "8096ba72-9841-4aa3-b9ae-6047e85323f7",
-            "clientId": "24e3f7e3-d472-465a-9dd5-392d44319ee0",
-            "licensePlate": "MAR-907",
-            "vehicleType": "Motorcycle",
-            "brand": "Yamaha",
-            "model": "FZ"
-        },
-        {
-            "id": "0e1273df-4f84-4c0b-ac17-08fcdadfcf5c",
-            "clientId": "ca33d431-acb4-4445-a4a8-4ad9ba1315e2",
-            "licensePlate": "CAR-882",
-            "vehicleType": "Car / Sedan",
-            "brand": "Kia",
-            "model": "Rio"
         }
     ]
 }
