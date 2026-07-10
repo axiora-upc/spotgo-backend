@@ -17,7 +17,8 @@ public record UpdateEmployeeResource(
         @NotBlank
         String role,
 
-        @Schema(description = "Work schedule", example = "all-week")
+        @Schema(description = "Work schedule", example = "all-week",
+                allowableValues = {"all-week", "weekdays", "weekends"})
         @NotBlank
         String schedule,
 

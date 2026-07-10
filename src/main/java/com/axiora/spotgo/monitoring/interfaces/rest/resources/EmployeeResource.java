@@ -19,7 +19,8 @@ public record EmployeeResource(
                 allowableValues = {"guard", "cleaning-personnel"})
         String role,
 
-        @Schema(description = "Work schedule", example = "all-week")
+        @Schema(description = "Work schedule", example = "all-week",
+                allowableValues = {"all-week", "weekdays", "weekends"})
         String schedule,
 
         @Schema(description = "Shift start time", example = "09:00")

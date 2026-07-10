@@ -13,7 +13,7 @@ public interface ReceiptRepository {
 
     List<Receipt> findAllByClientId(String clientId);
 
-    List<Receipt> findAllByBookingCode(String bookingCode);
+    List<Receipt> findAllByReservationId(String reservationId);
 
     Receipt save(Receipt receipt);
 

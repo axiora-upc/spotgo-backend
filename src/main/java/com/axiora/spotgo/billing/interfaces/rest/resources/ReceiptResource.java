@@ -9,6 +9,9 @@ public record ReceiptResource(
         @Schema(description = "Client identifier", example = "1")
         String clientId,
 
+        @Schema(description = "Reservation identifier", example = "7c1f24f2-...")
+        String reservationId,
+
         @Schema(description = "Invoice number", example = "INV-2026-0412")
         String invoiceNumber,
 
@@ -26,9 +29,6 @@ public record ReceiptResource(
 
         @Schema(description = "Payment method used", example = "Visa •• 4242")
         String paymentMethod,
-
-        @Schema(description = "Booking code", example = "SPG-A1B2C3")
-        String bookingCode,
 
         @Schema(description = "Total amount charged in S/.", example = "15.50")
         Double amount,

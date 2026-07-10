@@ -60,13 +60,12 @@ public class ReservationsController {
         var command = new ReserveSpotCommand(
                 principal.getUserId(),
                 resource.parkingId(),
-                resource.code(),
                 resource.spot(),
                 resource.startDate(),
                 resource.endDate(),
-                resource.amount(),
-                resource.baseAmount(),
-                resource.rating()
+                null,
+                null,
+                null
         );
         var reservationOptional = parkingCommandService.handle(command);
         if (reservationOptional.isEmpty()) {
@@ -121,8 +120,8 @@ public class ReservationsController {
         var reservation = parkingCommandService.handle(new UpdateReservationCommand(
                 reservationId,
                 resource.endDate(),
-                resource.amount(),
-                resource.baseAmount(),
+                authorizationService.isAdmin(principal) ? resource.amount() : null,
+                authorizationService.isAdmin(principal) ? resource.baseAmount() : null,
                 resource.rating(),
                 status
         ));

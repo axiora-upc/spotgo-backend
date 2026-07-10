@@ -12,6 +12,9 @@ public class ReceiptPersistenceEntity extends AuditableAbstractPersistenceEntity
     @Column(nullable = false)
     private String clientId;
 
+    @Column(nullable = false)
+    private String reservationId;
+
     @Column(nullable = false, unique = true)
     private String invoiceNumber;
 
@@ -30,9 +33,6 @@ public class ReceiptPersistenceEntity extends AuditableAbstractPersistenceEntity
     @Column(nullable = false)
     private String paymentMethod;
 
-    @Column(nullable = false, unique = true)
-    private String bookingCode;
-
     @Column(nullable = false)
     private Double amount;
 
@@ -44,6 +44,9 @@ public class ReceiptPersistenceEntity extends AuditableAbstractPersistenceEntity
 
     public String getClientId() { return clientId; }
     public void setClientId(String clientId) { this.clientId = clientId; }
+
+    public String getReservationId() { return reservationId; }
+    public void setReservationId(String reservationId) { this.reservationId = reservationId; }
 
     public String getInvoiceNumber() { return invoiceNumber; }
     public void setInvoiceNumber(String invoiceNumber) { this.invoiceNumber = invoiceNumber; }
@@ -62,9 +65,6 @@ public class ReceiptPersistenceEntity extends AuditableAbstractPersistenceEntity
 
     public String getPaymentMethod() { return paymentMethod; }
     public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
-
-    public String getBookingCode() { return bookingCode; }
-    public void setBookingCode(String bookingCode) { this.bookingCode = bookingCode; }
 
     public Double getAmount() { return amount; }
     public void setAmount(Double amount) { this.amount = amount; }

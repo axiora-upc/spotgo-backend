@@ -3,7 +3,6 @@ package com.axiora.spotgo.parking.interfaces.rest;
 import com.axiora.spotgo.iam.infrastructure.security.SpotgoUserPrincipal;
 import com.axiora.spotgo.monitoring.application.EmployeeSpotAssignmentService;
 import com.axiora.spotgo.parking.domain.model.aggregates.DetectedSpot;
-import com.axiora.spotgo.parking.application.ParkingOccupancyService;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateSpotStatusCommand;
 import com.axiora.spotgo.parking.domain.model.queries.GetAllDetectedSpotsQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetDetectedSpotsByParkingIdQuery;
@@ -23,6 +22,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
+import java.time.Clock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -34,23 +36,25 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "DetectedSpots", description = "Endpoints for managing detected parking spots")
 public class DetectedSpotsController {
 
+    private static final Logger log = LoggerFactory.getLogger(DetectedSpotsController.class);
+
     private final ParkingCommandService parkingCommandService;
     private final ParkingQueryService parkingQueryService;
     private final DetectedSpotRepository detectedSpotRepository;
     private final AuthorizationService authorizationService;
     private final EmployeeSpotAssignmentService employeeSpotAssignmentService;
-    private final ParkingOccupancyService parkingOccupancyService;
+    private final Clock clock;
 
     public DetectedSpotsController(ParkingCommandService parkingCommandService, ParkingQueryService parkingQueryService,
                                    DetectedSpotRepository detectedSpotRepository, AuthorizationService authorizationService,
                                    EmployeeSpotAssignmentService employeeSpotAssignmentService,
-                                   ParkingOccupancyService parkingOccupancyService) {
+                                   Clock clock) {
         this.parkingCommandService = parkingCommandService;
         this.parkingQueryService = parkingQueryService;
         this.detectedSpotRepository = detectedSpotRepository;
         this.authorizationService = authorizationService;
         this.employeeSpotAssignmentService = employeeSpotAssignmentService;
-        this.parkingOccupancyService = parkingOccupancyService;
+        this.clock = clock;
     }
 
     @GetMapping
@@ -69,28 +73,22 @@ public class DetectedSpotsController {
                 throw new org.springframework.security.access.AccessDeniedException("Requested parking is outside authenticated scope");
             }
             parkingScope = scopedParkingId;
-            parkingOccupancyService.reconcileParking(scopedParkingId, java.time.LocalDateTime.now());
             if (blueprintId != null) {
                 spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
             } else {
                 spots = parkingQueryService.handle(new GetDetectedSpotsByParkingIdQuery(scopedParkingId));
             }
         } else if (parkingId != null) {
-            parkingOccupancyService.reconcileParking(parkingId, java.time.LocalDateTime.now());
             spots = parkingQueryService.handle(new GetDetectedSpotsByParkingIdQuery(parkingId));
         } else if (blueprintId != null) {
             spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
             parkingScope = spots.isEmpty() ? null : spots.getFirst().getParkingId();
-            if (parkingScope != null) {
-                parkingOccupancyService.reconcileParking(parkingScope, java.time.LocalDateTime.now());
-                spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
-            }
         } else {
             spots = parkingQueryService.handle(new GetAllDetectedSpotsQuery());
         }
         var reservedEmployees = parkingScope == null
                 ? java.util.Map.<String, com.axiora.spotgo.monitoring.domain.model.aggregates.Employee>of()
-                : employeeSpotAssignmentService.getReservedEmployeesBySpot(parkingScope, java.time.LocalDateTime.now());
+                : employeeSpotAssignmentService.getReservedEmployeesBySpot(parkingScope, java.time.LocalDateTime.now(clock));
         var resources = spots.stream()
                 .map(spot -> toResource(spot, reservedEmployees.get(toSpotCode(spot))))
                 .toList();
@@ -104,16 +102,16 @@ public class DetectedSpotsController {
                     content = @Content(schema = @Schema(implementation = DetectedSpotResource.class))),
             @ApiResponse(responseCode = "404", description = "Blueprint not found")
     })
-    public ResponseEntity<List<DetectedSpotResource>> getSpotsByBlueprintId(@PathVariable String blueprintId) {
+    public ResponseEntity<List<DetectedSpotResource>> getSpotsByBlueprintId(@AuthenticationPrincipal SpotgoUserPrincipal principal,
+                                                                            @PathVariable String blueprintId) {
         var spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
         var parkingId = spots.isEmpty() ? null : spots.getFirst().getParkingId();
-        if (parkingId != null) {
-            parkingOccupancyService.reconcileParking(parkingId, java.time.LocalDateTime.now());
-            spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
+        if (authorizationService.isAdmin(principal) && parkingId != null) {
+            authorizationService.requireParkingOwnership(principal, parkingId);
         }
         var reservedEmployees = parkingId == null
                 ? java.util.Map.<String, com.axiora.spotgo.monitoring.domain.model.aggregates.Employee>of()
-                : employeeSpotAssignmentService.getReservedEmployeesBySpot(parkingId, java.time.LocalDateTime.now());
+                : employeeSpotAssignmentService.getReservedEmployeesBySpot(parkingId, java.time.LocalDateTime.now(clock));
         var resources = spots.stream()
                 .map(spot -> toResource(spot, reservedEmployees.get(toSpotCode(spot))))
                 .toList();
@@ -121,7 +119,6 @@ public class DetectedSpotsController {
     }
 
     @PatchMapping("/{spotId}/status")
-    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update spot status", description = "Updates the status of a detected parking spot.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Status updated successfully"),
@@ -129,15 +126,21 @@ public class DetectedSpotsController {
     })
     public ResponseEntity<Void> updateSpotStatus(@AuthenticationPrincipal SpotgoUserPrincipal principal,
                                                  @PathVariable String spotId, @RequestParam String status) {
+        var adminParkingId = authorizationService.requireAdminParkingId(principal);
         var currentSpot = detectedSpotRepository.findById(spotId).orElse(null);
         if (currentSpot == null) {
+            log.warn("updateSpotStatus: spot not found, spotId={}", spotId);
             return ResponseEntity.badRequest().build();
         }
-        authorizationService.requireDetectedSpotOwnership(principal, currentSpot);
+        if (!adminParkingId.equals(currentSpot.getParkingId())) {
+            log.warn("updateSpotStatus: parking mismatch, adminParkingId={}, spotParkingId={}", adminParkingId, currentSpot.getParkingId());
+            return ResponseEntity.badRequest().build();
+        }
         var spotStatus = SpotStatus.fromDisplayName(status);
         var command = new UpdateSpotStatusCommand(spotId, spotStatus);
         var updatedSpotOptional = parkingCommandService.handle(command);
         if (updatedSpotOptional.isEmpty()) {
+            log.warn("updateSpotStatus: command returned empty, spotId={}, status={}", spotId, status);
             return ResponseEntity.badRequest().build();
         }
         return ResponseEntity.ok().build();

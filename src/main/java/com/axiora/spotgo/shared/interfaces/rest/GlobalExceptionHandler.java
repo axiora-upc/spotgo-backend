@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import java.text.MessageFormat;
+import java.util.UUID;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
@@ -120,10 +121,11 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<?> handleRuntimeException(RuntimeException ex) {
-        log.error("Unhandled runtime exception: {}", ex.getMessage(), ex);
+        var traceId = UUID.randomUUID().toString();
+        log.error("Unhandled runtime exception [{}]: {}", traceId, ex.getMessage(), ex);
         var applicationError = ApplicationError.unexpected(
                 resolveMessageOrDefault("error.unexpected.context", "global-exception-handler"),
-                ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred.");
+                "An unexpected error occurred. Reference: %s".formatted(traceId));
         return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
     }
 
@@ -135,10 +137,11 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleException(Exception ex) {
-        log.error("Unhandled exception: {}", ex.getMessage(), ex);
+        var traceId = UUID.randomUUID().toString();
+        log.error("Unhandled exception [{}]: {}", traceId, ex.getMessage(), ex);
         var applicationError = ApplicationError.unexpected(
                 resolveMessageOrDefault("error.unexpected.context", "global-exception-handler"),
-                ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred.");
+                "An unexpected error occurred. Reference: %s".formatted(traceId));
         return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
     }
 }

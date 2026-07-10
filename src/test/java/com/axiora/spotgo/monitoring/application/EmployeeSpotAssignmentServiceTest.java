@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.axiora.spotgo.monitoring.domain.model.aggregates.Employee;
 import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeRole;
+import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeSchedule;
 import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeStatus;
 import com.axiora.spotgo.monitoring.infrastructure.persistence.jpa.repositories.EmployeeRepository;
 import com.axiora.spotgo.parking.domain.model.aggregates.DetectedSpot;
@@ -63,6 +64,7 @@ class EmployeeSpotAssignmentServiceTest {
                 "parking-1",
                 null,
                 "a1",
+                EmployeeSchedule.ALL_WEEK,
                 "09:00",
                 "17:00",
                 EmployeeStatus.ON_DUTY));
@@ -83,7 +85,7 @@ class EmployeeSpotAssignmentServiceTest {
         when(reservationRepository.findByParkingIdAndSpot("parking-1", "A1")).thenReturn(List.of(reservation));
 
         assertDoesNotThrow(() -> service.validateAssignment(
-                "parking-1", null, "A1", "09:00", "17:00", EmployeeStatus.ON_DUTY));
+                "parking-1", null, "A1", EmployeeSchedule.ALL_WEEK, "09:00", "17:00", EmployeeStatus.ON_DUTY));
     }
 
     @Test
@@ -93,7 +95,7 @@ class EmployeeSpotAssignmentServiceTest {
                 "Ana",
                 "Diaz",
                 EmployeeRole.GUARD,
-                "all-week",
+                EmployeeSchedule.ALL_WEEK,
                 "09:00",
                 "17:00",
                 "A1",
@@ -103,7 +105,7 @@ class EmployeeSpotAssignmentServiceTest {
                 "Luis",
                 "Perez",
                 EmployeeRole.GUARD,
-                "all-week",
+                EmployeeSchedule.ALL_WEEK,
                 "09:00",
                 "17:00",
                 "A2",
@@ -115,5 +117,88 @@ class EmployeeSpotAssignmentServiceTest {
         assertEquals(1, reservedBySpot.size());
         assertTrue(reservedBySpot.containsKey("A1"));
         assertEquals("Ana", reservedBySpot.get("A1").getFirstName());
+    }
+
+    @Test
+    void reservedEmployeesBySpotSkipsWeekdayEmployeeOnWeekend() {
+        var weekdayEmployee = new Employee(
+                "parking-1",
+                "Ana",
+                "Diaz",
+                EmployeeRole.GUARD,
+                EmployeeSchedule.WEEKDAYS,
+                "09:00",
+                "17:00",
+                "A1",
+                EmployeeStatus.ON_DUTY);
+        when(employeeRepository.findByParkingId("parking-1")).thenReturn(List.of(weekdayEmployee));
+
+        var reservedBySpot = service.getReservedEmployeesBySpot("parking-1", LocalDateTime.of(2026, 7, 11, 10, 0));
+
+        assertTrue(reservedBySpot.isEmpty());
+    }
+
+    @Test
+    void reservedEmployeesBySpotIncludesWeekendEmployeeOnWeekend() {
+        var weekendEmployee = new Employee(
+                "parking-1",
+                "Ana",
+                "Diaz",
+                EmployeeRole.GUARD,
+                EmployeeSchedule.WEEKENDS,
+                "09:00",
+                "17:00",
+                "A1",
+                EmployeeStatus.ON_DUTY);
+        when(employeeRepository.findByParkingId("parking-1")).thenReturn(List.of(weekendEmployee));
+
+        var reservedBySpot = service.getReservedEmployeesBySpot("parking-1", LocalDateTime.of(2026, 7, 11, 10, 0));
+
+        assertEquals(1, reservedBySpot.size());
+        assertTrue(reservedBySpot.containsKey("A1"));
+    }
+
+    @Test
+    void isSpotReservedForEmployeeSkipsWeekendEmployeeOnWeekday() {
+        var weekendEmployee = new Employee(
+                "parking-1",
+                "Ana",
+                "Diaz",
+                EmployeeRole.GUARD,
+                EmployeeSchedule.WEEKENDS,
+                "09:00",
+                "17:00",
+                "A1",
+                EmployeeStatus.ON_DUTY);
+        when(employeeRepository.findByParkingId("parking-1")).thenReturn(List.of(weekendEmployee));
+
+        var reserved = service.isSpotReservedForEmployee(
+                "parking-1",
+                "A1",
+                LocalDateTime.of(2026, 7, 10, 10, 0),
+                LocalDateTime.of(2026, 7, 10, 11, 0));
+
+        assertEquals(false, reserved);
+    }
+
+    @Test
+    void validateAssignmentIgnoresReservationOutsideWeekendSchedule() {
+        var spotA1 = new DetectedSpot(1, "bp-1", "parking-1", 0, 0, 0.1, 0.1, 0.1, 0.1, SpotStatus.AVAILABLE);
+        var fridayReservation = new Reservation(
+                "client-1",
+                "parking-1",
+                "SPG-001",
+                "A1",
+                LocalDateTime.of(2026, 7, 10, 10, 0),
+                LocalDateTime.of(2026, 7, 10, 11, 0),
+                10.0,
+                10.0,
+                null);
+        when(detectedSpotRepository.findByParkingId("parking-1")).thenReturn(List.of(spotA1));
+        when(employeeRepository.findByParkingIdAndAssignedSpot("parking-1", "A1")).thenReturn(Optional.empty());
+        when(reservationRepository.findByParkingIdAndSpot("parking-1", "A1")).thenReturn(List.of(fridayReservation));
+
+        assertDoesNotThrow(() -> service.validateAssignment(
+                "parking-1", null, "A1", EmployeeSchedule.WEEKENDS, "09:00", "17:00", EmployeeStatus.ON_DUTY));
     }
 }

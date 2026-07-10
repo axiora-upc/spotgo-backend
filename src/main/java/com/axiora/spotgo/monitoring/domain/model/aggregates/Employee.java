@@ -1,6 +1,7 @@
 package com.axiora.spotgo.monitoring.domain.model.aggregates;
 
 import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeRole;
+import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeSchedule;
 import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeStatus;
 import com.axiora.spotgo.shared.infrastructure.persistence.jpa.entities.UuidIdentifiedAggregateRoot;
 import jakarta.persistence.*;
@@ -26,8 +27,9 @@ public class Employee extends UuidIdentifiedAggregateRoot<Employee> {
     @Column(nullable = false)
     private EmployeeRole role;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String schedule;
+    private EmployeeSchedule schedule;
 
     @Column(nullable = false)
     private String shiftStart;
@@ -46,7 +48,7 @@ public class Employee extends UuidIdentifiedAggregateRoot<Employee> {
     }
 
     public Employee(String parkingId, String firstName, String lastName, EmployeeRole role,
-                    String schedule, String shiftStart, String shiftEnd, String assignedSpot, EmployeeStatus status) {
+                    EmployeeSchedule schedule, String shiftStart, String shiftEnd, String assignedSpot, EmployeeStatus status) {
         this.parkingId = parkingId;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -59,7 +61,7 @@ public class Employee extends UuidIdentifiedAggregateRoot<Employee> {
     }
 
     public void update(String firstName, String lastName, EmployeeRole role,
-                       String schedule, String shiftStart, String shiftEnd, String assignedSpot, EmployeeStatus status) {
+                       EmployeeSchedule schedule, String shiftStart, String shiftEnd, String assignedSpot, EmployeeStatus status) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.role = role;

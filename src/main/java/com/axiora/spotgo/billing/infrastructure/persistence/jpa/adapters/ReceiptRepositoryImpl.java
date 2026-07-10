@@ -39,8 +39,8 @@ public class ReceiptRepositoryImpl implements ReceiptRepository {
     }
 
     @Override
-    public List<Receipt> findAllByBookingCode(String bookingCode) {
-        return receiptPersistenceRepository.findAllByBookingCode(bookingCode).stream()
+    public List<Receipt> findAllByReservationId(String reservationId) {
+        return receiptPersistenceRepository.findAllByReservationId(reservationId).stream()
                 .map(ReceiptPersistenceAssembler::toDomainFromPersistence)
                 .toList();
     }

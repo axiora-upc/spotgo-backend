@@ -4,7 +4,7 @@ import com.axiora.spotgo.billing.application.commandservices.ReceiptCommandServi
 import com.axiora.spotgo.billing.application.queryservices.ReceiptQueryService;
 import com.axiora.spotgo.billing.domain.model.commands.DeleteReceiptCommand;
 import com.axiora.spotgo.billing.domain.model.queries.GetReceiptByIdQuery;
-import com.axiora.spotgo.billing.domain.model.queries.GetReceiptsByBookingCodeQuery;
+import com.axiora.spotgo.billing.domain.model.queries.GetReceiptsByReservationIdQuery;
 import com.axiora.spotgo.billing.domain.model.commands.CreateReceiptCommand;
 import com.axiora.spotgo.billing.domain.repositories.ReceiptRepository;
 import com.axiora.spotgo.iam.infrastructure.security.SpotgoUserPrincipal;
@@ -12,6 +12,7 @@ import com.axiora.spotgo.billing.interfaces.rest.resources.CreateReceiptResource
 import com.axiora.spotgo.billing.interfaces.rest.resources.ReceiptResource;
 import com.axiora.spotgo.billing.interfaces.rest.transform.ReceiptResourceFromEntityAssembler;
 import com.axiora.spotgo.shared.application.result.ApplicationError;
+import com.axiora.spotgo.shared.interfaces.rest.resource.ErrorResource;
 import com.axiora.spotgo.shared.interfaces.rest.transform.ErrorResponseAssembler;
 import com.axiora.spotgo.shared.interfaces.rest.transform.ResponseEntityAssembler;
 import io.swagger.v3.oas.annotations.Operation;
@@ -51,7 +52,7 @@ public class ReceiptsController {
     }
 
     @PostMapping
-    @Operation(summary = "Create a receipt", description = "Creates a new parking receipt for a completed session.")
+    @Operation(summary = "Create a receipt", description = "Receipts are generated automatically when a reservation is created.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Receipt created successfully",
                     content = @Content(schema = @Schema(implementation = ReceiptResource.class))),
@@ -59,22 +60,8 @@ public class ReceiptsController {
     })
     public ResponseEntity<?> createReceipt(@AuthenticationPrincipal SpotgoUserPrincipal principal,
                                            @Valid @RequestBody CreateReceiptResource resource) {
-        var command = new CreateReceiptCommand(
-                principal.getUserId(),
-                resource.invoiceNumber(),
-                resource.locationName(),
-                resource.date(),
-                resource.durationHours(),
-                resource.durationMinutes(),
-                resource.paymentMethod(),
-                resource.bookingCode(),
-                resource.amount());
-        var result = receiptCommandService.handle(command);
-        return ResponseEntityAssembler.toResponseEntityFromResult(
-                result,
-                ReceiptResourceFromEntityAssembler::toResourceFromEntity,
-                HttpStatus.CREATED
-        );
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(new ErrorResource("METHOD_NOT_ALLOWED", "Receipts are generated automatically when a reservation is created."));
     }
 
     @GetMapping
@@ -87,11 +74,11 @@ public class ReceiptsController {
     public ResponseEntity<List<ReceiptResource>> getAllReceipts(
             @AuthenticationPrincipal SpotgoUserPrincipal principal,
             @RequestParam(required = false)
-            @Parameter(description = "Filter receipts by booking code")
-            String bookingCode
+            @Parameter(description = "Filter receipts by reservation ID")
+            String reservationId
     ) {
-        var receipts = (bookingCode != null && !bookingCode.isBlank())
-                ? receiptQueryService.handle(new GetReceiptsByBookingCodeQuery(bookingCode)).stream()
+        var receipts = (reservationId != null && !reservationId.isBlank())
+                ? receiptQueryService.handle(new GetReceiptsByReservationIdQuery(reservationId)).stream()
                     .filter(receipt -> principal.getUserId().equals(receipt.getClientId()))
                     .toList()
                 : receiptRepository.findAllByClientId(principal.getUserId());
@@ -138,15 +125,7 @@ public class ReceiptsController {
             @Parameter(description = "Receipt unique identifier", example = "1", required = true)
             String receiptId
     ) {
-        var existingReceipt = receiptRepository.findById(receiptId);
-        if (existingReceipt.isPresent() && !principal.getUserId().equals(existingReceipt.get().getClientId())) {
-            throw new AccessDeniedException("Receipt is outside authenticated scope");
-        }
-        var result = receiptCommandService.handle(new DeleteReceiptCommand(receiptId));
-        if (result.isFailure()) {
-            var error = ApplicationError.notFound("Receipt", "Receipt with ID %s not found".formatted(receiptId));
-            return ErrorResponseAssembler.toErrorResponseFromApplicationError(error);
-        }
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(new ErrorResource("METHOD_NOT_ALLOWED", "Receipts cannot be deleted manually."));
     }
 }

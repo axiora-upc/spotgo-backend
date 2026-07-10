@@ -16,6 +16,7 @@ import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.Par
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -78,6 +79,7 @@ public class UserAccountService {
         if (userAccountRepository.existsByEmail(normalizedEmail)) {
             throw new IllegalArgumentException("iam.errors.email-taken");
         }
+        PasswordPolicy.validate(password);
         var user = new UserAccount(firstName, lastName, normalizedEmail, passwordEncoder.encode(password), "", "", UserRole.CLIENT);
         var savedUser = userAccountRepository.save(user);
         clientPlanRepository.findAll().stream()
@@ -85,7 +87,7 @@ public class UserAccountService {
                 .findFirst()
                 .ifPresent(freePlan -> subscriptionRepository.save(new Subscription(
                         savedUser.getId(), freePlan.getId(), SubscriptionStatus.ACTIVE,
-                        "", 0.0, 0, 0.0, "", Instant.now().toString(),
+                        LocalDate.now(clock).toString(), 0.0, 0, 0.0, currentYearMonth(), LocalDate.now(clock).toString(),
                         false, "", "")));
         return toAuthenticated(savedUser, jwtTokenService.generateToken(savedUser));
     }
@@ -113,6 +115,7 @@ public class UserAccountService {
     }
 
     public void confirmPasswordReset(String email, String code, String newPassword) {
+        PasswordPolicy.validate(newPassword);
         var normalizedEmail = UserAccount.normalizeEmail(email);
         var now = Instant.now(clock);
         var resetCode = passwordResetCodeRepository.findByEmail(normalizedEmail)
@@ -129,6 +132,9 @@ public class UserAccountService {
 
         var user = userAccountRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new IllegalArgumentException("iam.errors.password-reset.invalid"));
+        if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+            throw new IllegalArgumentException("New password must be different from the current password");
+        }
         user.updatePasswordHash(passwordEncoder.encode(newPassword));
         resetCode.markUsed(now);
         userAccountRepository.save(user);
@@ -140,6 +146,10 @@ public class UserAccountService {
                 .orElseThrow(() -> new IllegalArgumentException("iam.errors.generic"));
         if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
             throw new IllegalArgumentException("iam.errors.current-password-invalid");
+        }
+        PasswordPolicy.validate(newPassword);
+        if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+            throw new IllegalArgumentException("New password must be different from the current password");
         }
         user.updatePasswordHash(passwordEncoder.encode(newPassword));
         userAccountRepository.save(user);
@@ -186,5 +196,10 @@ public class UserAccountService {
 
     private String generateResetCode() {
         return "%06d".formatted(SECURE_RANDOM.nextInt(1_000_000));
+    }
+
+    private String currentYearMonth() {
+        var today = LocalDate.now(clock);
+        return "%d-%02d".formatted(today.getYear(), today.getMonthValue());
     }
 }

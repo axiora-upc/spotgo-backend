@@ -1,6 +1,7 @@
 package com.axiora.spotgo.monitoring.application;
 
 import com.axiora.spotgo.monitoring.domain.model.aggregates.Employee;
+import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeSchedule;
 import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeStatus;
 import com.axiora.spotgo.monitoring.infrastructure.persistence.jpa.repositories.EmployeeRepository;
 import com.axiora.spotgo.parking.domain.model.valueobjects.ReservationStatus;
@@ -35,6 +36,7 @@ public class EmployeeSpotAssignmentService {
     public void validateAssignment(String parkingId,
                                    String employeeIdToIgnore,
                                    String assignedSpot,
+                                   EmployeeSchedule schedule,
                                    String shiftStart,
                                    String shiftEnd,
                                    EmployeeStatus status) {
@@ -63,6 +65,9 @@ public class EmployeeSpotAssignmentService {
 
         var conflictingReservation = reservationRepository.findByParkingIdAndSpot(parkingId, normalizedSpot).stream()
                 .filter(reservation -> reservation.getStatus() == ReservationStatus.ACTIVE)
+                .filter(reservation -> scheduleApplies(schedule,
+                        reservation.getStartDate().toLocalDate(),
+                        reservation.getEndDate().toLocalDate()))
                 .anyMatch(reservation -> overlapsRecurringShift(
                         reservation.getStartDate(),
                         reservation.getEndDate(),
@@ -81,6 +86,7 @@ public class EmployeeSpotAssignmentService {
         return employeeRepository.findByParkingId(parkingId).stream()
                 .filter(employee -> normalizedSpot.equals(normalizeSpot(employee.getAssignedSpot())))
                 .filter(employee -> employee.getStatus() == EmployeeStatus.ON_DUTY)
+                .filter(employee -> scheduleApplies(employee.getSchedule(), startDate.toLocalDate(), endDate.toLocalDate()))
                 .anyMatch(employee -> overlapsRecurringShift(startDate, endDate, employee.getShiftStart(), employee.getShiftEnd()));
     }
 
@@ -88,6 +94,7 @@ public class EmployeeSpotAssignmentService {
         return employeeRepository.findByParkingId(parkingId).stream()
                 .filter(employee -> employee.getStatus() == EmployeeStatus.ON_DUTY)
                 .filter(employee -> employee.getAssignedSpot() != null && !employee.getAssignedSpot().isBlank())
+                .filter(employee -> scheduleApplies(employee.getSchedule(), now.toLocalDate(), now.toLocalDate()))
                 .filter(employee -> overlapsRecurringShift(now, now.plusNanos(1), employee.getShiftStart(), employee.getShiftEnd()))
                 .collect(Collectors.toMap(
                         employee -> normalizeSpot(employee.getAssignedSpot()),
@@ -129,6 +136,29 @@ public class EmployeeSpotAssignmentService {
             }
         }
         return false;
+    }
+
+    private boolean scheduleApplies(EmployeeSchedule schedule, LocalDate startDate, LocalDate endDate) {
+        for (var date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+            if (scheduleIncludes(schedule, date)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean scheduleIncludes(EmployeeSchedule schedule, LocalDate date) {
+        return switch (schedule) {
+            case ALL_WEEK -> true;
+            case WEEKDAYS -> switch (date.getDayOfWeek()) {
+                case SATURDAY, SUNDAY -> false;
+                default -> true;
+            };
+            case WEEKENDS -> switch (date.getDayOfWeek()) {
+                case SATURDAY, SUNDAY -> true;
+                default -> false;
+            };
+        };
     }
 
     private LocalTime parseTime(String value) {
