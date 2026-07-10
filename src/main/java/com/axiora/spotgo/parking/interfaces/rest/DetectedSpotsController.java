@@ -23,6 +23,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import java.time.Clock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,6 +35,8 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/detectedSpots")
 @Tag(name = "DetectedSpots", description = "Endpoints for managing detected parking spots")
 public class DetectedSpotsController {
+
+    private static final Logger log = LoggerFactory.getLogger(DetectedSpotsController.class);
 
     private final ParkingCommandService parkingCommandService;
     private final ParkingQueryService parkingQueryService;
@@ -115,7 +119,6 @@ public class DetectedSpotsController {
     }
 
     @PatchMapping("/{spotId}/status")
-    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update spot status", description = "Updates the status of a detected parking spot.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Status updated successfully"),
@@ -123,15 +126,21 @@ public class DetectedSpotsController {
     })
     public ResponseEntity<Void> updateSpotStatus(@AuthenticationPrincipal SpotgoUserPrincipal principal,
                                                  @PathVariable String spotId, @RequestParam String status) {
+        var adminParkingId = authorizationService.requireAdminParkingId(principal);
         var currentSpot = detectedSpotRepository.findById(spotId).orElse(null);
         if (currentSpot == null) {
+            log.warn("updateSpotStatus: spot not found, spotId={}", spotId);
             return ResponseEntity.badRequest().build();
         }
-        authorizationService.requireDetectedSpotOwnership(principal, currentSpot);
+        if (!adminParkingId.equals(currentSpot.getParkingId())) {
+            log.warn("updateSpotStatus: parking mismatch, adminParkingId={}, spotParkingId={}", adminParkingId, currentSpot.getParkingId());
+            return ResponseEntity.badRequest().build();
+        }
         var spotStatus = SpotStatus.fromDisplayName(status);
         var command = new UpdateSpotStatusCommand(spotId, spotStatus);
         var updatedSpotOptional = parkingCommandService.handle(command);
         if (updatedSpotOptional.isEmpty()) {
+            log.warn("updateSpotStatus: command returned empty, spotId={}, status={}", spotId, status);
             return ResponseEntity.badRequest().build();
         }
         return ResponseEntity.ok().build();

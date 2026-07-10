@@ -14,7 +14,8 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         var config = new CorsConfiguration();
         var origins = new java.util.ArrayList<>(List.of(
-                "http://localhost:4200",
+                "http://localhost:*",
+                "http://127.0.0.1:*",
                 "https://spotgo-frontend.vercel.app"
         ));
         String extraOrigin = System.getenv("CORS_ALLOWED_ORIGIN");

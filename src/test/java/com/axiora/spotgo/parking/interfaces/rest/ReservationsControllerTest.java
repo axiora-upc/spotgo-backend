@@ -48,17 +48,12 @@ class ReservationsControllerTest {
 
     @Test
     void reserveSpotUsesAuthenticatedClientIdInsteadOfRequestBodyClientId() {
-        var principal = new SpotgoUserPrincipal("client-auth", "client@spotgo.com", "pw", UserRole.CLIENT);
+        var principal = new SpotgoUserPrincipal("client-auth", "client@spotgo.com", "pw", UserRole.CLIENT, 0L);
         var resource = new CreateReservationResource(
-                "body-client",
                 "parking-1",
-                "SPG-001",
                 "B5",
                 LocalDateTime.of(2026, 7, 7, 10, 0),
-                LocalDateTime.of(2026, 7, 7, 11, 0),
-                10.0,
-                10.0,
-                null);
+                LocalDateTime.of(2026, 7, 7, 11, 0));
         when(parkingCommandService.handle(any(ReserveSpotCommand.class))).thenReturn(Optional.of(new Reservation(
                 "client-auth",
                 "parking-1",
@@ -79,7 +74,7 @@ class ReservationsControllerTest {
 
     @Test
     void getAllReservationsRejectsAdminRequestForForeignParking() {
-        var principal = new SpotgoUserPrincipal("admin-1", "admin@spotgo.com", "pw", UserRole.ADMIN);
+        var principal = new SpotgoUserPrincipal("admin-1", "admin@spotgo.com", "pw", UserRole.ADMIN, 0L);
         when(authorizationService.isAdmin(principal)).thenReturn(true);
         when(authorizationService.requireAdminParkingId(principal)).thenReturn("parking-owned");
 
@@ -89,7 +84,7 @@ class ReservationsControllerTest {
 
     @Test
     void getAllReservationsScopesAdminToOwnedParking() {
-        var principal = new SpotgoUserPrincipal("admin-1", "admin@spotgo.com", "pw", UserRole.ADMIN);
+        var principal = new SpotgoUserPrincipal("admin-1", "admin@spotgo.com", "pw", UserRole.ADMIN, 0L);
         when(authorizationService.isAdmin(principal)).thenReturn(true);
         when(authorizationService.requireAdminParkingId(principal)).thenReturn("parking-owned");
         when(parkingQueryService.handle(any(GetReservationsByParkingIdQuery.class))).thenReturn(List.of());

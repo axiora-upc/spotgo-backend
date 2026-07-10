@@ -112,7 +112,9 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
         if (spot.isEmpty()) return Optional.empty();
         var detectedSpot = spot.get();
         detectedSpot.updateStatus(command.status());
-        return Optional.of(detectedSpotRepository.save(detectedSpot));
+        var savedSpot = detectedSpotRepository.save(detectedSpot);
+        parkingOccupancyService.reconcileParking(savedSpot.getParkingId(), LocalDateTime.now(clock));
+        return Optional.of(savedSpot);
     }
 
     @Override
@@ -316,7 +318,7 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
     }
 
     private void createReceiptForReservation(Reservation reservation, String parkingName) {
-        if (!receiptRepository.findAllByBookingCode(reservation.getCode()).isEmpty()) {
+        if (!receiptRepository.findAllByReservationId(reservation.getId().toString()).isEmpty()) {
             return;
         }
         long totalMinutes = Math.max(1, ChronoUnit.MINUTES.between(reservation.getStartDate(), reservation.getEndDate()));
@@ -324,13 +326,13 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
         int minutes = (int) (totalMinutes % 60);
         var receipt = new Receipt(
                 reservation.getClientId(),
+                reservation.getId().toString(),
                 generateInvoiceNumber(),
                 parkingName,
                 LocalDate.now(clock).toString(),
                 hours,
                 minutes,
                 "Simulated",
-                reservation.getCode(),
                 reservation.getAmount(),
                 com.axiora.spotgo.billing.domain.model.valueobjects.ReceiptStatus.PAID);
         receiptRepository.save(receipt);

@@ -11,6 +11,10 @@ public record CreateReceiptResource(
         String clientId,
 
         @NotBlank(message = "{validation.not-blank}")
+        @Schema(description = "Reservation identifier", example = "7c1f24f2-...")
+        String reservationId,
+
+        @NotBlank(message = "{validation.not-blank}")
         @Schema(description = "Invoice number", example = "INV-2026-0412")
         String invoiceNumber,
 
@@ -31,10 +35,6 @@ public record CreateReceiptResource(
         @NotBlank(message = "{validation.not-blank}")
         @Schema(description = "Payment method used", example = "Visa •• 4242")
         String paymentMethod,
-
-        @NotBlank(message = "{validation.not-blank}")
-        @Schema(description = "Booking code", example = "SPG-A1B2C3")
-        String bookingCode,
 
         @NotNull(message = "{validation.not-null}")
         @Positive

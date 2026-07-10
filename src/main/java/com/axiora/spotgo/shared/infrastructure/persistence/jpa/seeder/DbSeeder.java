@@ -21,6 +21,7 @@ import com.axiora.spotgo.monitoring.domain.model.aggregates.Employee;
 import com.axiora.spotgo.monitoring.domain.model.aggregates.OccupancyByHour;
 import com.axiora.spotgo.monitoring.domain.model.aggregates.WeeklyTrend;
 import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeRole;
+import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeSchedule;
 import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeStatus;
 import com.axiora.spotgo.monitoring.infrastructure.persistence.jpa.repositories.EmployeeRepository;
 import com.axiora.spotgo.monitoring.infrastructure.persistence.jpa.repositories.OccupancyByHourRepository;
@@ -48,6 +49,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 
@@ -454,13 +456,13 @@ public class DbSeeder implements CommandLineRunner {
             var entity = new ReceiptPersistenceEntity();
             entity.setId(node.get("id").asText());
             entity.setClientId(node.get("clientId").asText());
+            entity.setReservationId(node.get("reservationId").asText());
             entity.setInvoiceNumber(node.get("invoiceNumber").asText());
             entity.setLocationName(node.get("locationName").asText());
             entity.setDate(node.get("date").asText());
             entity.setDurationHours(node.get("durationHours").asInt());
             entity.setDurationMinutes(node.get("durationMinutes").asInt());
             entity.setPaymentMethod(node.get("paymentMethod").asText());
-            entity.setBookingCode(node.get("bookingCode").asText());
             entity.setAmount(node.get("amount").asDouble());
             entity.setStatus(node.get("status").asText());
 
@@ -486,7 +488,7 @@ public class DbSeeder implements CommandLineRunner {
                     node.get("firstName").asText(),
                     node.get("lastName").asText(),
                     EmployeeRole.fromDisplayName(node.get("role").asText()),
-                    node.get("schedule").asText(),
+                    EmployeeSchedule.fromDisplayName(node.get("schedule").asText()),
                     node.get("shiftStart").asText(),
                     node.get("shiftEnd").asText(),
                     nullableText(node, "assignedSpot"),
@@ -588,8 +590,13 @@ public class DbSeeder implements CommandLineRunner {
         try {
             return Instant.parse(dateStr);
         } catch (Exception e) {
-            log.warn("could not parse instant '{}', using current time", dateStr);
-            return Instant.now();
+            try {
+                var ldt = LocalDateTime.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+                return ldt.atZone(ZoneId.of("America/Lima")).toInstant();
+            } catch (Exception e2) {
+                log.warn("could not parse instant '{}', using current time", dateStr);
+                return Instant.now();
+            }
         }
     }
 }

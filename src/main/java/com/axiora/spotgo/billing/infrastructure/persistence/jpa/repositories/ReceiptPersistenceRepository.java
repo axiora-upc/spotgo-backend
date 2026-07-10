@@ -7,5 +7,5 @@ import java.util.List;
 
 public interface ReceiptPersistenceRepository extends JpaRepository<ReceiptPersistenceEntity, String> {
     List<ReceiptPersistenceEntity> findAllByClientId(String clientId);
-    List<ReceiptPersistenceEntity> findAllByBookingCode(String bookingCode);
+    List<ReceiptPersistenceEntity> findAllByReservationId(String reservationId);
 }

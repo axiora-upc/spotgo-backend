@@ -8,13 +8,13 @@ public class CreateReceiptCommandFromResourceAssembler {
     public static CreateReceiptCommand toCommandFromResource(CreateReceiptResource resource) {
         return new CreateReceiptCommand(
                 resource.clientId(),
+                resource.reservationId(),
                 resource.invoiceNumber(),
                 resource.locationName(),
                 resource.date(),
                 resource.durationHours(),
                 resource.durationMinutes(),
                 resource.paymentMethod(),
-                resource.bookingCode(),
                 resource.amount()
         );
     }

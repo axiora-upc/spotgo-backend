@@ -9,13 +9,13 @@ public class ReceiptResourceFromEntityAssembler {
         return new ReceiptResource(
                 entity.getId(),
                 entity.getClientId(),
+                entity.getReservationId(),
                 entity.getInvoiceNumber(),
                 entity.getLocationName(),
                 entity.getDate(),
                 entity.getDurationHours(),
                 entity.getDurationMinutes(),
                 entity.getPaymentMethod(),
-                entity.getBookingCode(),
                 entity.getAmount(),
                 entity.getStatus().name().toLowerCase()
         );

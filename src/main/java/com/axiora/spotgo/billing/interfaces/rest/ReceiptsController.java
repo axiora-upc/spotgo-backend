@@ -4,7 +4,7 @@ import com.axiora.spotgo.billing.application.commandservices.ReceiptCommandServi
 import com.axiora.spotgo.billing.application.queryservices.ReceiptQueryService;
 import com.axiora.spotgo.billing.domain.model.commands.DeleteReceiptCommand;
 import com.axiora.spotgo.billing.domain.model.queries.GetReceiptByIdQuery;
-import com.axiora.spotgo.billing.domain.model.queries.GetReceiptsByBookingCodeQuery;
+import com.axiora.spotgo.billing.domain.model.queries.GetReceiptsByReservationIdQuery;
 import com.axiora.spotgo.billing.domain.model.commands.CreateReceiptCommand;
 import com.axiora.spotgo.billing.domain.repositories.ReceiptRepository;
 import com.axiora.spotgo.iam.infrastructure.security.SpotgoUserPrincipal;
@@ -74,11 +74,11 @@ public class ReceiptsController {
     public ResponseEntity<List<ReceiptResource>> getAllReceipts(
             @AuthenticationPrincipal SpotgoUserPrincipal principal,
             @RequestParam(required = false)
-            @Parameter(description = "Filter receipts by booking code")
-            String bookingCode
+            @Parameter(description = "Filter receipts by reservation ID")
+            String reservationId
     ) {
-        var receipts = (bookingCode != null && !bookingCode.isBlank())
-                ? receiptQueryService.handle(new GetReceiptsByBookingCodeQuery(bookingCode)).stream()
+        var receipts = (reservationId != null && !reservationId.isBlank())
+                ? receiptQueryService.handle(new GetReceiptsByReservationIdQuery(reservationId)).stream()
                     .filter(receipt -> principal.getUserId().equals(receipt.getClientId()))
                     .toList()
                 : receiptRepository.findAllByClientId(principal.getUserId());

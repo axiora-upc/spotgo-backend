@@ -1,6 +1,5 @@
 package com.axiora.spotgo.iam.infrastructure.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -8,7 +7,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -22,12 +20,10 @@ public class AuthenticationRateLimitFilter extends OncePerRequestFilter {
     private static final long WINDOW_SECONDS = 60;
 
     private final Clock clock;
-    private final ObjectMapper objectMapper;
     private final ConcurrentHashMap<String, Window> windows = new ConcurrentHashMap<>();
 
-    public AuthenticationRateLimitFilter(Clock clock, ObjectMapper objectMapper) {
+    public AuthenticationRateLimitFilter(Clock clock) {
         this.clock = clock;
-        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -52,10 +48,8 @@ public class AuthenticationRateLimitFilter extends OncePerRequestFilter {
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setHeader("Retry-After", String.valueOf(retryAfter));
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            objectMapper.writeValue(response.getWriter(), Map.of(
-                    "code", "RATE_LIMITED",
-                    "message", "Too many authentication attempts. Please try again later."
-            ));
+            response.getWriter().write("""
+                    {"code":"RATE_LIMITED","message":"Too many authentication attempts. Please try again later."}""");
             return;
         }
         filterChain.doFilter(request, response);

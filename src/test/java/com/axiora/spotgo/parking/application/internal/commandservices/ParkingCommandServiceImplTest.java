@@ -1,24 +1,35 @@
 package com.axiora.spotgo.parking.application.internal.commandservices;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.axiora.spotgo.billing.domain.model.aggregates.ClientPlan;
+import com.axiora.spotgo.billing.domain.repositories.ClientPlanRepository;
+import com.axiora.spotgo.billing.domain.repositories.ReceiptRepository;
+import com.axiora.spotgo.billing.domain.repositories.SubscriptionRepository;
 import com.axiora.spotgo.iam.infrastructure.persistence.jpa.repositories.UserAccountRepository;
 import com.axiora.spotgo.monitoring.application.EmployeeSpotAssignmentService;
 import com.axiora.spotgo.parking.application.ParkingOccupancyService;
+import com.axiora.spotgo.parking.domain.model.aggregates.DetectedSpot;
+import com.axiora.spotgo.parking.domain.model.aggregates.Parking;
 import com.axiora.spotgo.parking.domain.model.aggregates.ClientReport;
 import com.axiora.spotgo.parking.domain.model.aggregates.Reservation;
 import com.axiora.spotgo.parking.domain.model.commands.CreateClientReportCommand;
 import com.axiora.spotgo.parking.domain.model.commands.ReserveSpotCommand;
 import com.axiora.spotgo.parking.domain.model.valueobjects.ReportType;
+import com.axiora.spotgo.parking.domain.model.valueobjects.SpotStatus;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.BlueprintRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ClientReportRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.DetectedSpotRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ParkingRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ReservationRepository;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -47,6 +58,14 @@ class ParkingCommandServiceImplTest {
     private ParkingOccupancyService parkingOccupancyService;
     @Mock
     private EmployeeSpotAssignmentService employeeSpotAssignmentService;
+    @Mock
+    private ReceiptRepository receiptRepository;
+    @Mock
+    private SubscriptionRepository subscriptionRepository;
+    @Mock
+    private ClientPlanRepository clientPlanRepository;
+
+    private final Clock clock = Clock.systemUTC();
 
     private ParkingCommandServiceImpl service;
 
@@ -60,7 +79,11 @@ class ParkingCommandServiceImplTest {
                 clientReportRepository,
                 userAccountRepository,
                 parkingOccupancyService,
-                employeeSpotAssignmentService);
+                employeeSpotAssignmentService,
+                receiptRepository,
+                subscriptionRepository,
+                clientPlanRepository,
+                clock);
     }
 
     @Test
@@ -77,12 +100,13 @@ class ParkingCommandServiceImplTest {
                 null);
         when(userAccountRepository.existsById("client-1")).thenReturn(true);
         when(parkingRepository.existsById("parking-1")).thenReturn(true);
+        when(detectedSpotRepository.findByParkingIdAndRowAndCol("parking-1", 1, 4))
+                .thenReturn(List.of(new DetectedSpot(1, "bp-1", "parking-1", 1, 4, 0.1, 0.1, 0.1, 0.1, SpotStatus.AVAILABLE)));
         when(reservationRepository.findByParkingIdAndSpot("parking-1", "B5")).thenReturn(List.of(existing));
 
         var exception = assertThrows(IllegalArgumentException.class, () -> service.handle(new ReserveSpotCommand(
                 "client-1",
                 "parking-1",
-                "SPG-NEW",
                 "B5",
                 LocalDateTime.of(2026, 7, 7, 11, 0),
                 LocalDateTime.of(2026, 7, 7, 13, 0),
@@ -126,14 +150,24 @@ class ParkingCommandServiceImplTest {
         var end = LocalDateTime.now().plusMinutes(55);
         when(userAccountRepository.existsById("client-1")).thenReturn(true);
         when(parkingRepository.existsById("parking-1")).thenReturn(true);
+        var parking = mock(Parking.class);
+        when(parking.getPricePerHour()).thenReturn(10.0);
+        when(parking.getName()).thenReturn("SpotGo Parking");
+        when(parkingRepository.findByIdForUpdate("parking-1")).thenReturn(Optional.of(parking));
+        when(detectedSpotRepository.findByParkingIdAndRowAndCol("parking-1", 1, 4))
+                .thenReturn(List.of(new DetectedSpot(1, "bp-1", "parking-1", 1, 4, 0.1, 0.1, 0.1, 0.1, SpotStatus.AVAILABLE)));
         when(reservationRepository.findByParkingIdAndSpot("parking-1", "B5")).thenReturn(List.of());
         when(employeeSpotAssignmentService.isSpotReservedForEmployee("parking-1", "B5", start, end)).thenReturn(false);
-        when(reservationRepository.save(any(Reservation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(invocation -> {
+            var r = invocation.getArgument(0, Reservation.class);
+            if (r.getId() == null) r.setId(java.util.UUID.randomUUID().toString());
+            return r;
+        });
+        when(receiptRepository.findAllByReservationId(any())).thenReturn(List.of());
 
         service.handle(new ReserveSpotCommand(
                 "client-1",
                 "parking-1",
-                "SPG-NEW",
                 "B5",
                 start,
                 end,
@@ -150,13 +184,16 @@ class ParkingCommandServiceImplTest {
         var end = LocalDateTime.of(2026, 7, 7, 13, 0);
         when(userAccountRepository.existsById("client-1")).thenReturn(true);
         when(parkingRepository.existsById("parking-1")).thenReturn(true);
+        var parking = mock(Parking.class);
+        when(parkingRepository.findByIdForUpdate("parking-1")).thenReturn(Optional.of(parking));
+        when(detectedSpotRepository.findByParkingIdAndRowAndCol("parking-1", 1, 4))
+                .thenReturn(List.of(new DetectedSpot(1, "bp-1", "parking-1", 1, 4, 0.1, 0.1, 0.1, 0.1, SpotStatus.AVAILABLE)));
         when(reservationRepository.findByParkingIdAndSpot("parking-1", "B5")).thenReturn(List.of());
         when(employeeSpotAssignmentService.isSpotReservedForEmployee("parking-1", "B5", start, end)).thenReturn(true);
 
         var exception = assertThrows(IllegalArgumentException.class, () -> service.handle(new ReserveSpotCommand(
                 "client-1",
                 "parking-1",
-                "SPG-NEW",
                 "B5",
                 start,
                 end,

@@ -5,6 +5,8 @@ import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.Par
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ReservationRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,12 @@ public class ReservationLifecycleService {
         this.parkingOccupancyService = parkingOccupancyService;
         this.parkingRepository = parkingRepository;
         this.clock = clock;
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional
+    public void reconcileOnStartup() {
+        reconcileExpiredReservations();
     }
 
     @Scheduled(fixedDelayString = "${app.reservations.lifecycle.fixed-delay-ms:60000}")

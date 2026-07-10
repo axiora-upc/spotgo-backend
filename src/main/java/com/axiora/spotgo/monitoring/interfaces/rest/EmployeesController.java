@@ -10,6 +10,7 @@ import com.axiora.spotgo.monitoring.domain.model.commands.UpdateEmployeeCommand;
 import com.axiora.spotgo.monitoring.domain.model.queries.GetAllEmployeesQuery;
 import com.axiora.spotgo.monitoring.infrastructure.persistence.jpa.repositories.EmployeeRepository;
 import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeRole;
+import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeSchedule;
 import com.axiora.spotgo.monitoring.domain.model.valueobjects.EmployeeStatus;
 import com.axiora.spotgo.monitoring.application.internal.commandservices.MonitoringCommandService;
 import com.axiora.spotgo.monitoring.application.internal.queryservices.MonitoringQueryService;
@@ -72,12 +73,13 @@ public class EmployeesController {
                 parkingId,
                 null,
                 resource.assignedSpot(),
+                EmployeeSchedule.fromDisplayName(resource.schedule()),
                 resource.shiftStart(),
                 resource.shiftEnd(),
                 EmployeeStatus.fromDisplayName(resource.status()));
         var command = new CreateEmployeeCommand(
                 parkingId, resource.firstName(), resource.lastName(),
-                EmployeeRole.fromDisplayName(resource.role()), resource.schedule(),
+                EmployeeRole.fromDisplayName(resource.role()), EmployeeSchedule.fromDisplayName(resource.schedule()),
                 resource.shiftStart(), resource.shiftEnd(),
                 employeeSpotAssignmentService.normalizeSpot(resource.assignedSpot()),
                 EmployeeStatus.fromDisplayName(resource.status()));
@@ -121,12 +123,13 @@ public class EmployeesController {
                 currentEmployee.getParkingId(),
                 currentEmployee.getId(),
                 resource.assignedSpot(),
+                EmployeeSchedule.fromDisplayName(resource.schedule()),
                 resource.shiftStart(),
                 resource.shiftEnd(),
                 EmployeeStatus.fromDisplayName(resource.status()));
         var command = new UpdateEmployeeCommand(
                 employeeId, resource.firstName(), resource.lastName(),
-                EmployeeRole.fromDisplayName(resource.role()), resource.schedule(),
+                EmployeeRole.fromDisplayName(resource.role()), EmployeeSchedule.fromDisplayName(resource.schedule()),
                 resource.shiftStart(), resource.shiftEnd(),
                 employeeSpotAssignmentService.normalizeSpot(resource.assignedSpot()),
                 EmployeeStatus.fromDisplayName(resource.status()));
@@ -158,7 +161,7 @@ public class EmployeesController {
                 employee.getFirstName(),
                 employee.getLastName(),
                 employee.getRole().getDisplayName(),
-                employee.getSchedule(),
+                employee.getSchedule().getDisplayName(),
                 employee.getShiftStart(),
                 employee.getShiftEnd(),
                 employee.getAssignedSpot(),

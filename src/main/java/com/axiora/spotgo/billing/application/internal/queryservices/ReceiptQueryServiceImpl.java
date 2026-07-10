@@ -4,7 +4,7 @@ import com.axiora.spotgo.billing.application.queryservices.ReceiptQueryService;
 import com.axiora.spotgo.billing.domain.model.aggregates.Receipt;
 import com.axiora.spotgo.billing.domain.model.queries.GetAllReceiptsQuery;
 import com.axiora.spotgo.billing.domain.model.queries.GetReceiptByIdQuery;
-import com.axiora.spotgo.billing.domain.model.queries.GetReceiptsByBookingCodeQuery;
+import com.axiora.spotgo.billing.domain.model.queries.GetReceiptsByReservationIdQuery;
 import com.axiora.spotgo.billing.domain.repositories.ReceiptRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +33,7 @@ public class ReceiptQueryServiceImpl implements ReceiptQueryService {
     }
 
     @Override
-    public List<Receipt> handle(GetReceiptsByBookingCodeQuery query) {
-        return receiptRepository.findAllByBookingCode(query.bookingCode());
+    public List<Receipt> handle(GetReceiptsByReservationIdQuery query) {
+        return receiptRepository.findAllByReservationId(query.reservationId());
     }
 }

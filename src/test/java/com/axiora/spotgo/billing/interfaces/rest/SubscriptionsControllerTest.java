@@ -46,8 +46,8 @@ class SubscriptionsControllerTest {
 
     @Test
     void createSubscriptionUsesAuthenticatedClientId() {
-        var principal = new SpotgoUserPrincipal("client-auth", "client@spotgo.com", "pw", UserRole.CLIENT);
-        var resource = new CreateSubscriptionResource("body-client", "plan-pro", "2026-08-01", 29.9, "2026-07-01", true, "4242", "12/28");
+        var principal = new SpotgoUserPrincipal("client-auth", "client@spotgo.com", "pw", UserRole.CLIENT, 0L);
+        var resource = new CreateSubscriptionResource("plan-pro", true, "4242", "12/28");
         when(subscriptionCommandService.handle(any(CreateSubscriptionCommand.class))).thenReturn(Result.success(
                 new Subscription("sub-1", "client-auth", "plan-pro", SubscriptionStatus.ACTIVE, "2026-08-01", 29.9, 0, 0.0, "", "2026-07-01", true, "4242", "12/28")));
 
@@ -60,7 +60,7 @@ class SubscriptionsControllerTest {
 
     @Test
     void getAllSubscriptionsReturnsOnlyAuthenticatedClientSubscriptions() {
-        var principal = new SpotgoUserPrincipal("client-auth", "client@spotgo.com", "pw", UserRole.CLIENT);
+        var principal = new SpotgoUserPrincipal("client-auth", "client@spotgo.com", "pw", UserRole.CLIENT, 0L);
         when(subscriptionRepository.findAllByClientId("client-auth")).thenReturn(List.of(
                 new Subscription("sub-1", "client-auth", "plan-pro", SubscriptionStatus.ACTIVE, "2026-08-01", 29.9, 0, 0.0, "", "2026-07-01", true, "4242", "12/28")));
 
@@ -72,8 +72,8 @@ class SubscriptionsControllerTest {
 
     @Test
     void updateSubscriptionRejectsForeignOwner() {
-        var principal = new SpotgoUserPrincipal("client-auth", "client@spotgo.com", "pw", UserRole.CLIENT);
-        var resource = new UpdateSubscriptionResource("plan-pro", "active", "2026-08-01", 29.9, 1, 3.0, "2026-07", true, "4242", "12/28");
+        var principal = new SpotgoUserPrincipal("client-auth", "client@spotgo.com", "pw", UserRole.CLIENT, 0L);
+        var resource = new UpdateSubscriptionResource("plan-pro", true, "4242", "12/28");
         when(subscriptionRepository.findById("sub-1")).thenReturn(Optional.of(
                 new Subscription("sub-1", "other-client", "plan-pro", SubscriptionStatus.ACTIVE, "2026-08-01", 29.9, 0, 0.0, "", "2026-07-01", true, "4242", "12/28")));
 
