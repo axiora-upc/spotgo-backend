@@ -9,6 +9,7 @@ import com.axiora.spotgo.parking.domain.model.commands.DeleteBlueprintCommand;
 import com.axiora.spotgo.parking.application.internal.commandservices.ParkingCommandService;
 import com.axiora.spotgo.parking.application.internal.queryservices.ParkingQueryService;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.BlueprintRepository;
+import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.DetectedSpotRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ReservationRepository;
 import com.axiora.spotgo.parking.domain.model.valueobjects.ReservationStatus;
 import com.axiora.spotgo.parking.interfaces.rest.resources.BlueprintResource;
@@ -38,15 +39,17 @@ public class BlueprintsController {
     private final ParkingCommandService parkingCommandService;
     private final ParkingQueryService parkingQueryService;
     private final BlueprintRepository blueprintRepository;
+    private final DetectedSpotRepository detectedSpotRepository;
     private final ReservationRepository reservationRepository;
     private final AuthorizationService authorizationService;
 
     public BlueprintsController(ParkingCommandService parkingCommandService, ParkingQueryService parkingQueryService,
-                                BlueprintRepository blueprintRepository, ReservationRepository reservationRepository,
+                                BlueprintRepository blueprintRepository, DetectedSpotRepository detectedSpotRepository, ReservationRepository reservationRepository,
                                 AuthorizationService authorizationService) {
         this.parkingCommandService = parkingCommandService;
         this.parkingQueryService = parkingQueryService;
         this.blueprintRepository = blueprintRepository;
+        this.detectedSpotRepository = detectedSpotRepository;
         this.reservationRepository = reservationRepository;
         this.authorizationService = authorizationService;
     }
@@ -168,6 +171,11 @@ public class BlueprintsController {
         if (!activeReservations.isEmpty()) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(Map.of("message", "Cannot delete blueprint: parking has active reservations"));
+        }
+
+        if (!detectedSpotRepository.findByBlueprintId(blueprintId).isEmpty()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", "Cannot delete blueprint: blueprint still has detected spots"));
         }
 
         parkingCommandService.handle(new DeleteBlueprintCommand(blueprintId));

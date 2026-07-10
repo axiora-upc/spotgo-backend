@@ -46,6 +46,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
                 var userDetails = userDetailsService.loadUserByUsername(email);
+                if (userDetails instanceof SpotgoUserPrincipal principal) {
+                    var tokenVersion = jwtTokenService.extractTokenVersion(token);
+                    if (tokenVersion == null || !tokenVersion.equals(principal.getTokenVersion())) {
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+                }
                 var authentication = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

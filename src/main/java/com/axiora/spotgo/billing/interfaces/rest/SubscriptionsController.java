@@ -63,9 +63,6 @@ public class SubscriptionsController {
         var command = new CreateSubscriptionCommand(
                 principal.getUserId(),
                 resource.planId(),
-                resource.renewsOn(),
-                resource.pricePerMonth(),
-                resource.memberSince(),
                 resource.autoRenewal(),
                 resource.paymentMethodLastFour(),
                 resource.paymentMethodExpiry());
@@ -163,35 +160,6 @@ public class SubscriptionsController {
     ) {
         requireSubscriptionOwner(principal, subscriptionId);
         var command = UpdateSubscriptionCommandFromResourceAssembler.toCommandFromResource(subscriptionId, resource);
-        var result = subscriptionCommandService.handle(command);
-        return ResponseEntityAssembler.toResponseEntityFromResult(
-                result,
-                SubscriptionResourceFromEntityAssembler::toResourceFromEntity,
-                HttpStatus.OK
-        );
-    }
-
-    @PatchMapping("/{subscriptionId}/savings")
-    @Operation(summary = "Patch subscription savings",
-            description = "Partially updates savedThisMonth and savingsMonth of a subscription.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Subscription savings updated",
-                    content = @Content(schema = @Schema(implementation = SubscriptionResource.class))),
-            @ApiResponse(responseCode = "404", description = "Subscription not found")
-    })
-    public ResponseEntity<?> patchSubscriptionSavings(
-            @AuthenticationPrincipal SpotgoUserPrincipal principal,
-            @PathVariable
-            @Parameter(description = "Subscription unique identifier", example = "1", required = true)
-            String subscriptionId,
-            @Valid @RequestBody PatchSubscriptionSavingsResource resource
-    ) {
-        requireSubscriptionOwner(principal, subscriptionId);
-        var command = new PatchSubscriptionSavingsCommand(
-                subscriptionId,
-                resource.savedThisMonth(),
-                resource.savingsMonth()
-        );
         var result = subscriptionCommandService.handle(command);
         return ResponseEntityAssembler.toResponseEntityFromResult(
                 result,

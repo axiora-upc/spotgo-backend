@@ -6,6 +6,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
@@ -22,20 +23,24 @@ public class JwtTokenService {
 
     private final String secret;
     private final long expirationDays;
+    private final Clock clock;
 
     public JwtTokenService(
             @Value("${authorization.jwt.secret}") String secret,
-            @Value("${authorization.jwt.expiration.days}") long expirationDays) {
+            @Value("${authorization.jwt.expiration.days}") long expirationDays,
+            Clock clock) {
         this.secret = secret;
         this.expirationDays = expirationDays;
+        this.clock = clock;
     }
 
     public String generateToken(UserAccount user) {
-        var now = Instant.now();
+        var now = Instant.now(clock);
         return Jwts.builder()
                 .subject(user.getEmail())
                 .claim("uid", user.getId())
                 .claim("role", user.getRole().name().toLowerCase())
+                .claim("ver", user.getTokenVersion())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(expirationDays, ChronoUnit.DAYS)))
                 .signWith(getSigningKey())
@@ -54,6 +59,10 @@ public class JwtTokenService {
             log.debug("JWT token validation failed: {}", e.getMessage());
             return false;
         }
+    }
+
+    public Long extractTokenVersion(String token) {
+        return parseClaims(token).get("ver", Long.class);
     }
 
     private Claims parseClaims(String token) {

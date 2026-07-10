@@ -89,22 +89,39 @@ public class Subscription extends AbstractDomainAggregateRoot<Subscription> {
 
     public Subscription(CreateSubscriptionCommand command) {
         this(command.clientId(), command.planId(), SubscriptionStatus.ACTIVE,
-                command.renewsOn(), command.pricePerMonth(), 0,
-                0.0, "", command.memberSince(), command.autoRenewal(),
+                "", 0.0, 0,
+                0.0, "", "", command.autoRenewal(),
                 command.paymentMethodLastFour(), command.paymentMethodExpiry());
     }
 
-    public void update(UpdateSubscriptionCommand command) {
+    public void applyPlan(String planId, Double pricePerMonth, String renewsOn) {
+        this.planId = planId;
+        this.pricePerMonth = pricePerMonth;
+        this.renewsOn = renewsOn;
+        this.status = SubscriptionStatus.ACTIVE;
+    }
+
+    public void update(UpdateSubscriptionCommand command, Double pricePerMonth, String renewsOn) {
         this.planId = command.planId();
-        this.status = command.status();
-        this.renewsOn = command.renewsOn();
-        this.pricePerMonth = command.pricePerMonth();
-        this.sessions = command.sessions();
-        this.savedThisMonth = command.savedThisMonth();
-        this.savingsMonth = command.savingsMonth();
+        this.status = SubscriptionStatus.ACTIVE;
+        this.renewsOn = renewsOn;
+        this.pricePerMonth = pricePerMonth;
         this.autoRenewal = command.autoRenewal();
         this.paymentMethodLastFour = command.paymentMethodLastFour();
         this.paymentMethodExpiry = command.paymentMethodExpiry();
+    }
+
+    public void registerReservation(String currentMonth, double savingsAmount) {
+        if (currentMonth == null || currentMonth.isBlank()) {
+            throw new IllegalArgumentException("Savings month is required");
+        }
+        if (!currentMonth.equals(this.savingsMonth)) {
+            this.savingsMonth = currentMonth;
+            this.savedThisMonth = 0.0;
+            this.sessions = 0;
+        }
+        this.sessions = this.sessions == null ? 1 : this.sessions + 1;
+        this.savedThisMonth = (this.savedThisMonth == null ? 0.0 : this.savedThisMonth) + Math.max(0.0, savingsAmount);
     }
 
     public void patchSavings(PatchSubscriptionSavingsCommand command) {

@@ -31,6 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AnalyticsService {
 
+    private static final int MAX_CUSTOM_RANGE_DAYS = 31;
+    private static final int MAX_UTILIZED_SPOTS = 10;
+
     private final ParkingRepository parkingRepository;
     private final ReservationRepository reservationRepository;
     private final DetectedSpotRepository detectedSpotRepository;
@@ -198,7 +201,10 @@ public class AnalyticsService {
 
         var resources = new ArrayList<SpotUtilizationResource>();
         int index = 0;
-        for (var entry : spotStats.entrySet().stream().sorted((left, right) -> Integer.compare(right.getValue().count(), left.getValue().count())).toList()) {
+        for (var entry : spotStats.entrySet().stream()
+                .sorted((left, right) -> Integer.compare(right.getValue().count(), left.getValue().count()))
+                .limit(MAX_UTILIZED_SPOTS)
+                .toList()) {
             var spotCode = entry.getKey();
             var stats = entry.getValue();
             resources.add(new SpotUtilizationResource(
@@ -322,7 +328,13 @@ public class AnalyticsService {
         if (from == null || to == null || from.isAfter(to)) {
             throw new IllegalArgumentException("Custom analytics range requires valid from/to dates");
         }
+        if (from.isAfter(today) || to.isAfter(today)) {
+            throw new IllegalArgumentException("Custom analytics range cannot include future dates");
+        }
         int days = (int) ChronoUnit.DAYS.between(from, to) + 1;
+        if (days > MAX_CUSTOM_RANGE_DAYS) {
+            throw new IllegalArgumentException("Custom analytics range cannot exceed %d days".formatted(MAX_CUSTOM_RANGE_DAYS));
+        }
         return new TimeRange(from.atStartOfDay(), to.plusDays(1).atStartOfDay(), days);
     }
 

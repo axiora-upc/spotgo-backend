@@ -13,13 +13,15 @@ public class SpotgoUserPrincipal implements UserDetails {
     private final String email;
     private final String passwordHash;
     private final UserRole role;
+    private final Long tokenVersion;
     private final List<GrantedAuthority> authorities;
 
-    public SpotgoUserPrincipal(String userId, String email, String passwordHash, UserRole role) {
+    public SpotgoUserPrincipal(String userId, String email, String passwordHash, UserRole role, Long tokenVersion) {
         this.userId = userId;
         this.email = email;
         this.passwordHash = passwordHash;
         this.role = role;
+        this.tokenVersion = tokenVersion;
         this.authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
@@ -29,6 +31,10 @@ public class SpotgoUserPrincipal implements UserDetails {
 
     public UserRole getRole() {
         return role;
+    }
+
+    public Long getTokenVersion() {
+        return tokenVersion;
     }
 
     @Override

@@ -3,7 +3,6 @@ package com.axiora.spotgo.parking.interfaces.rest;
 import com.axiora.spotgo.iam.infrastructure.security.SpotgoUserPrincipal;
 import com.axiora.spotgo.monitoring.application.EmployeeSpotAssignmentService;
 import com.axiora.spotgo.parking.domain.model.aggregates.DetectedSpot;
-import com.axiora.spotgo.parking.application.ParkingOccupancyService;
 import com.axiora.spotgo.parking.domain.model.commands.UpdateSpotStatusCommand;
 import com.axiora.spotgo.parking.domain.model.queries.GetAllDetectedSpotsQuery;
 import com.axiora.spotgo.parking.domain.model.queries.GetDetectedSpotsByParkingIdQuery;
@@ -23,6 +22,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
+import java.time.Clock;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -39,18 +39,18 @@ public class DetectedSpotsController {
     private final DetectedSpotRepository detectedSpotRepository;
     private final AuthorizationService authorizationService;
     private final EmployeeSpotAssignmentService employeeSpotAssignmentService;
-    private final ParkingOccupancyService parkingOccupancyService;
+    private final Clock clock;
 
     public DetectedSpotsController(ParkingCommandService parkingCommandService, ParkingQueryService parkingQueryService,
                                    DetectedSpotRepository detectedSpotRepository, AuthorizationService authorizationService,
                                    EmployeeSpotAssignmentService employeeSpotAssignmentService,
-                                   ParkingOccupancyService parkingOccupancyService) {
+                                   Clock clock) {
         this.parkingCommandService = parkingCommandService;
         this.parkingQueryService = parkingQueryService;
         this.detectedSpotRepository = detectedSpotRepository;
         this.authorizationService = authorizationService;
         this.employeeSpotAssignmentService = employeeSpotAssignmentService;
-        this.parkingOccupancyService = parkingOccupancyService;
+        this.clock = clock;
     }
 
     @GetMapping
@@ -69,28 +69,22 @@ public class DetectedSpotsController {
                 throw new org.springframework.security.access.AccessDeniedException("Requested parking is outside authenticated scope");
             }
             parkingScope = scopedParkingId;
-            parkingOccupancyService.reconcileParking(scopedParkingId, java.time.LocalDateTime.now());
             if (blueprintId != null) {
                 spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
             } else {
                 spots = parkingQueryService.handle(new GetDetectedSpotsByParkingIdQuery(scopedParkingId));
             }
         } else if (parkingId != null) {
-            parkingOccupancyService.reconcileParking(parkingId, java.time.LocalDateTime.now());
             spots = parkingQueryService.handle(new GetDetectedSpotsByParkingIdQuery(parkingId));
         } else if (blueprintId != null) {
             spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
             parkingScope = spots.isEmpty() ? null : spots.getFirst().getParkingId();
-            if (parkingScope != null) {
-                parkingOccupancyService.reconcileParking(parkingScope, java.time.LocalDateTime.now());
-                spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
-            }
         } else {
             spots = parkingQueryService.handle(new GetAllDetectedSpotsQuery());
         }
         var reservedEmployees = parkingScope == null
                 ? java.util.Map.<String, com.axiora.spotgo.monitoring.domain.model.aggregates.Employee>of()
-                : employeeSpotAssignmentService.getReservedEmployeesBySpot(parkingScope, java.time.LocalDateTime.now());
+                : employeeSpotAssignmentService.getReservedEmployeesBySpot(parkingScope, java.time.LocalDateTime.now(clock));
         var resources = spots.stream()
                 .map(spot -> toResource(spot, reservedEmployees.get(toSpotCode(spot))))
                 .toList();
@@ -104,16 +98,16 @@ public class DetectedSpotsController {
                     content = @Content(schema = @Schema(implementation = DetectedSpotResource.class))),
             @ApiResponse(responseCode = "404", description = "Blueprint not found")
     })
-    public ResponseEntity<List<DetectedSpotResource>> getSpotsByBlueprintId(@PathVariable String blueprintId) {
+    public ResponseEntity<List<DetectedSpotResource>> getSpotsByBlueprintId(@AuthenticationPrincipal SpotgoUserPrincipal principal,
+                                                                            @PathVariable String blueprintId) {
         var spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
         var parkingId = spots.isEmpty() ? null : spots.getFirst().getParkingId();
-        if (parkingId != null) {
-            parkingOccupancyService.reconcileParking(parkingId, java.time.LocalDateTime.now());
-            spots = parkingQueryService.handle(new GetSpotsByBlueprintIdQuery(blueprintId));
+        if (authorizationService.isAdmin(principal) && parkingId != null) {
+            authorizationService.requireParkingOwnership(principal, parkingId);
         }
         var reservedEmployees = parkingId == null
                 ? java.util.Map.<String, com.axiora.spotgo.monitoring.domain.model.aggregates.Employee>of()
-                : employeeSpotAssignmentService.getReservedEmployeesBySpot(parkingId, java.time.LocalDateTime.now());
+                : employeeSpotAssignmentService.getReservedEmployeesBySpot(parkingId, java.time.LocalDateTime.now(clock));
         var resources = spots.stream()
                 .map(spot -> toResource(spot, reservedEmployees.get(toSpotCode(spot))))
                 .toList();

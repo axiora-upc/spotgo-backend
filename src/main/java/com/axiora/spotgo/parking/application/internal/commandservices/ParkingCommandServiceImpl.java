@@ -1,5 +1,11 @@
 package com.axiora.spotgo.parking.application.internal.commandservices;
 
+import com.axiora.spotgo.billing.domain.model.aggregates.Receipt;
+import com.axiora.spotgo.billing.domain.model.valueobjects.PlanType;
+import com.axiora.spotgo.billing.domain.model.valueobjects.SubscriptionStatus;
+import com.axiora.spotgo.billing.domain.repositories.ClientPlanRepository;
+import com.axiora.spotgo.billing.domain.repositories.ReceiptRepository;
+import com.axiora.spotgo.billing.domain.repositories.SubscriptionRepository;
 import com.axiora.spotgo.iam.infrastructure.persistence.jpa.repositories.UserAccountRepository;
 import com.axiora.spotgo.monitoring.application.EmployeeSpotAssignmentService;
 import com.axiora.spotgo.parking.application.ParkingOccupancyService;
@@ -26,8 +32,11 @@ import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.Blu
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ClientReportRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ParkingRepository;
 import com.axiora.spotgo.parking.infrastructure.persistence.jpa.repositories.ReservationRepository;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -45,8 +54,12 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
     private final UserAccountRepository userAccountRepository;
     private final ParkingOccupancyService parkingOccupancyService;
     private final EmployeeSpotAssignmentService employeeSpotAssignmentService;
+    private final ReceiptRepository receiptRepository;
+    private final SubscriptionRepository subscriptionRepository;
+    private final ClientPlanRepository clientPlanRepository;
+    private final Clock clock;
 
-    public ParkingCommandServiceImpl(ParkingRepository parkingRepository, BlueprintRepository blueprintRepository, DetectedSpotRepository detectedSpotRepository, ReservationRepository reservationRepository, ClientReportRepository clientReportRepository, UserAccountRepository userAccountRepository, ParkingOccupancyService parkingOccupancyService, EmployeeSpotAssignmentService employeeSpotAssignmentService) {
+    public ParkingCommandServiceImpl(ParkingRepository parkingRepository, BlueprintRepository blueprintRepository, DetectedSpotRepository detectedSpotRepository, ReservationRepository reservationRepository, ClientReportRepository clientReportRepository, UserAccountRepository userAccountRepository, ParkingOccupancyService parkingOccupancyService, EmployeeSpotAssignmentService employeeSpotAssignmentService, ReceiptRepository receiptRepository, SubscriptionRepository subscriptionRepository, ClientPlanRepository clientPlanRepository, Clock clock) {
         this.parkingRepository = parkingRepository;
         this.blueprintRepository = blueprintRepository;
         this.detectedSpotRepository = detectedSpotRepository;
@@ -55,6 +68,10 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
         this.userAccountRepository = userAccountRepository;
         this.parkingOccupancyService = parkingOccupancyService;
         this.employeeSpotAssignmentService = employeeSpotAssignmentService;
+        this.receiptRepository = receiptRepository;
+        this.subscriptionRepository = subscriptionRepository;
+        this.clientPlanRepository = clientPlanRepository;
+        this.clock = clock;
     }
 
     @Override
@@ -100,13 +117,21 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
 
     @Override
     public Optional<Reservation> handle(ReserveSpotCommand command) {
-        validateReservation(command.clientId(), command.parkingId(), command.spot(), command.startDate(), command.endDate(), null);
+        var parking = parkingRepository.findByIdForUpdate(command.parkingId())
+                .orElseThrow(() -> new IllegalArgumentException("Parking does not exist"));
+        var normalizedSpot = normalizeSpot(command.spot());
+        validateReservation(command.clientId(), command.parkingId(), normalizedSpot, command.startDate(), command.endDate(), null);
+        double baseAmount = calculateBaseAmount(parking.getPricePerHour(), command.startDate(), command.endDate());
+        double discountPercent = resolveDiscountPercent(command.clientId());
+        double amount = applyDiscount(baseAmount, discountPercent);
         var reservation = new Reservation(
-                command.clientId(), command.parkingId(), command.code(), command.spot(),
+                command.clientId(), command.parkingId(), generateReservationCode(), normalizedSpot,
                 command.startDate(), command.endDate(),
-                command.amount(), command.baseAmount(), command.rating());
+                amount, baseAmount, command.rating());
         var savedReservation = reservationRepository.save(reservation);
-        parkingOccupancyService.reconcileParking(command.parkingId(), LocalDateTime.now());
+        createReceiptForReservation(savedReservation, parking.getName());
+        registerReservationSavings(command.clientId(), discountPercent, baseAmount, amount);
+        parkingOccupancyService.reconcileParking(command.parkingId(), LocalDateTime.now(clock));
         return Optional.of(savedReservation);
     }
 
@@ -123,8 +148,10 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
 
     @Override
     public Optional<DetectedSpot> handle(CreateDetectedSpotCommand command) {
-        if (!blueprintRepository.existsById(command.blueprintId())) {
-            throw new IllegalArgumentException("Blueprint does not exist");
+        var blueprint = blueprintRepository.findById(command.blueprintId())
+                .orElseThrow(() -> new IllegalArgumentException("Blueprint does not exist"));
+        if (!blueprint.getParkingId().equals(command.parkingId())) {
+            throw new IllegalArgumentException("Blueprint does not belong to the provided parking");
         }
         var spot = new DetectedSpot(
                 command.localId(), command.blueprintId(), command.parkingId(),
@@ -136,6 +163,9 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
 
     @Override
     public void handle(DeleteBlueprintCommand command) {
+        if (!detectedSpotRepository.findByBlueprintId(command.blueprintId()).isEmpty()) {
+            throw new IllegalStateException("Cannot delete blueprint with detected spots");
+        }
         blueprintRepository.deleteById(command.blueprintId());
     }
 
@@ -179,6 +209,8 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
             return Optional.empty();
         }
         var reservation = reservationOpt.get();
+        parkingRepository.findByIdForUpdate(reservation.getParkingId())
+                .orElseThrow(() -> new IllegalArgumentException("Parking does not exist"));
         validateReservation(
                 reservation.getClientId(),
                 reservation.getParkingId(),
@@ -187,8 +219,16 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
                 command.endDate() == null ? reservation.getEndDate() : command.endDate(),
                 reservation.getId());
         reservation.updateDetails(command.endDate(), command.amount(), command.baseAmount(), command.rating(), command.status());
+        if (command.endDate() != null) {
+            var parking = parkingRepository.findById(reservation.getParkingId())
+                    .orElseThrow(() -> new IllegalArgumentException("Parking does not exist"));
+            double recalculatedBase = calculateBaseAmount(parking.getPricePerHour(), reservation.getStartDate(), reservation.getEndDate());
+            double amount = command.amount() != null ? command.amount() : applyDiscount(recalculatedBase, resolveDiscountPercent(reservation.getClientId()));
+            double baseAmount = command.baseAmount() != null ? command.baseAmount() : recalculatedBase;
+            reservation.updatePricing(amount, baseAmount);
+        }
         var savedReservation = reservationRepository.save(reservation);
-        parkingOccupancyService.reconcileParking(reservation.getParkingId(), LocalDateTime.now());
+        parkingOccupancyService.reconcileParking(reservation.getParkingId(), LocalDateTime.now(clock));
         return Optional.of(savedReservation);
     }
 
@@ -201,6 +241,13 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
         }
         if (startDate == null || endDate == null || !endDate.isAfter(startDate)) {
             throw new IllegalArgumentException("Reservation time range is invalid");
+        }
+        var detectedSpot = resolveDetectedSpot(parkingId, spot);
+        if (detectedSpot == null) {
+            throw new IllegalArgumentException("Spot does not exist in the selected parking");
+        }
+        if (detectedSpot.getStatus() == com.axiora.spotgo.parking.domain.model.valueobjects.SpotStatus.MAINTENANCE) {
+            throw new IllegalArgumentException("Spot is under maintenance");
         }
 
         var conflictingReservation = reservationRepository.findByParkingIdAndSpot(parkingId, spot).stream()
@@ -229,5 +276,84 @@ public class ParkingCommandServiceImpl implements ParkingCommandService {
 
     private Instant parseDateTime(String value) {
         return Instant.parse(value);
+    }
+
+    private DetectedSpot resolveDetectedSpot(String parkingId, String spotCode) {
+        var normalized = normalizeSpot(spotCode);
+        int row = normalized.charAt(0) - 'A';
+        int col = Integer.parseInt(normalized.substring(1)) - 1;
+        return detectedSpotRepository.findByParkingIdAndRowAndCol(parkingId, row, col).stream().findFirst().orElse(null);
+    }
+
+    private String normalizeSpot(String spotCode) {
+        if (spotCode == null) {
+            throw new IllegalArgumentException("Spot is required");
+        }
+        var normalized = spotCode.trim().toUpperCase();
+        if (!normalized.matches("[A-Z]+\\d+")) {
+            throw new IllegalArgumentException("Spot code is invalid");
+        }
+        return normalized;
+    }
+
+    private double calculateBaseAmount(Double pricePerHour, LocalDateTime startDate, LocalDateTime endDate) {
+        double hourlyRate = pricePerHour == null ? 0.0 : pricePerHour;
+        long minutes = Math.max(1, ChronoUnit.MINUTES.between(startDate, endDate));
+        return Math.round(((minutes / 60.0) * hourlyRate) * 100.0) / 100.0;
+    }
+
+    private double resolveDiscountPercent(String clientId) {
+        return subscriptionRepository.findAllByClientId(clientId).stream()
+                .findFirst()
+                .flatMap(subscription -> clientPlanRepository.findById(subscription.getPlanId()))
+                .map(plan -> plan.getDiscountPercent() == null ? 0.0 : plan.getDiscountPercent())
+                .orElse(0.0);
+    }
+
+    private double applyDiscount(double baseAmount, double discountPercent) {
+        double discounted = baseAmount * (1 - (Math.max(0.0, discountPercent) / 100.0));
+        return Math.round(discounted * 100.0) / 100.0;
+    }
+
+    private void createReceiptForReservation(Reservation reservation, String parkingName) {
+        if (!receiptRepository.findAllByBookingCode(reservation.getCode()).isEmpty()) {
+            return;
+        }
+        long totalMinutes = Math.max(1, ChronoUnit.MINUTES.between(reservation.getStartDate(), reservation.getEndDate()));
+        int hours = (int) (totalMinutes / 60);
+        int minutes = (int) (totalMinutes % 60);
+        var receipt = new Receipt(
+                reservation.getClientId(),
+                generateInvoiceNumber(),
+                parkingName,
+                LocalDate.now(clock).toString(),
+                hours,
+                minutes,
+                "Simulated",
+                reservation.getCode(),
+                reservation.getAmount(),
+                com.axiora.spotgo.billing.domain.model.valueobjects.ReceiptStatus.PAID);
+        receiptRepository.save(receipt);
+    }
+
+    private void registerReservationSavings(String clientId, double discountPercent, double baseAmount, double amount) {
+        subscriptionRepository.findAllByClientId(clientId).stream().findFirst().ifPresent(subscription -> {
+            double savings = discountPercent <= 0 ? 0.0 : Math.max(0.0, baseAmount - amount);
+            subscription.registerReservation(currentYearMonth(), savings);
+            subscriptionRepository.save(subscription);
+        });
+    }
+
+    private String currentYearMonth() {
+        var today = LocalDate.now(clock);
+        return "%d-%02d".formatted(today.getYear(), today.getMonthValue());
+    }
+
+    private String generateReservationCode() {
+        return "SPG-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+    }
+
+    private String generateInvoiceNumber() {
+        return "INV-" + UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
     }
 }

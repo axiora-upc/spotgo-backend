@@ -36,6 +36,9 @@ public class UserAccount extends UuidIdentifiedAggregateRoot<UserAccount> {
     @Column(nullable = false)
     private UserRole role;
 
+    @Column(nullable = false)
+    private Long tokenVersion = 0L;
+
     protected UserAccount() {
     }
 
@@ -58,6 +61,7 @@ public class UserAccount extends UuidIdentifiedAggregateRoot<UserAccount> {
 
     public void updatePasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+        this.tokenVersion = this.tokenVersion + 1;
     }
 
     public static String normalizeEmail(String email) {

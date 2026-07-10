@@ -76,4 +76,9 @@ public class Reservation extends UuidIdentifiedAggregateRoot<Reservation> {
         if (rating != null) this.rating = rating;
         if (status != null) this.status = status;
     }
+
+    public void updatePricing(Double amount, Double baseAmount) {
+        this.amount = amount;
+        this.baseAmount = baseAmount;
+    }
 }

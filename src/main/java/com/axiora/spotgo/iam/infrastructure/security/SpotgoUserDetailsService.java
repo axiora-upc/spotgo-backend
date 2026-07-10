@@ -20,6 +20,6 @@ public class SpotgoUserDetailsService implements UserDetailsService {
         var normalizedEmail = email == null ? null : email.trim().toLowerCase();
         var user = userAccountRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-        return new SpotgoUserPrincipal(user.getId(), user.getEmail(), user.getPasswordHash(), user.getRole());
+        return new SpotgoUserPrincipal(user.getId(), user.getEmail(), user.getPasswordHash(), user.getRole(), user.getTokenVersion());
     }
 }
